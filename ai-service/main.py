@@ -1,479 +1,405 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-import uvicorn
-import os
-from dotenv import load_dotenv
-from loguru import logger
-import asyncio
+#!/usr/bin/env python3
 
-# Load environment variables
-load_dotenv()
+import os
+import asyncio
+import time
+from contextlib import asynccontextmanager
+from typing import Dict, Any, List, Optional
+
+import uvicorn
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
 
 # Import our services
 from services.ocr_service import OCRService
 from services.fraud_detection_service import FraudDetectionService
 from services.image_analysis_service import ImageAnalysisService
 from services.document_validator import DocumentValidator
-from models.analysis_models import (
-    ClaimAnalysisRequest,
-    ClaimAnalysisResponse,
-    DocumentProcessingRequest,
-    DocumentProcessingResponse,
-    HealthAnalysisRequest,
-    VehicleAnalysisRequest
-)
-from utils.auth import verify_api_key
-from utils.logger import setup_logger
+from utils.logger import setup_logger, log_api_request, log_performance, log_error_with_context
+from utils.auth import verify_api_key, check_rate_limit
+from models.analysis_models import *
 
-# Setup logging
+# Setup logger first - call the function, don't assign it
 setup_logger()
 
-# Initialize FastAPI app
+# Import logger after setup
+from loguru import logger
+
+# Configuration - CPU ONLY
+AI_SERVICE_CONFIG = {
+    "host": "0.0.0.0",
+    "port": 8001,
+    "max_file_size_mb": 50,
+    "processing_timeout_seconds": 300,
+    "use_gpu": False,  # CPU ONLY - NO GPU
+    "batch_size": 4,   # Smaller batch for CPU
+    "log_level": "INFO",
+}
+
+# Force CPU usage - no GPU shit
+os.environ["CUDA_VISIBLE_DEVICES"] = ""  # Disable all CUDA devices
+os.environ["PYTORCH_DISABLE_CUDA"] = "1"  # Disable PyTorch CUDA
+logger.info("🖥️ AI Service configured for CPU-only operation")
+
+# Initialize services
+ocr_service = None
+fraud_service = None
+image_service = None
+document_validator = None
+
+# Security
+security = HTTPBearer()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager for startup and shutdown"""
+    # Startup
+    logger.info("🚀 Starting ChainSureAI AI Service (CPU Mode)...")
+    
+    global ocr_service, fraud_service, image_service, document_validator
+    
+    try:
+        # Initialize OCR Service (CPU only)
+        logger.info("📖 Initializing OCR Service...")
+        ocr_service = OCRService()
+        await ocr_service.initialize()
+        
+        # Initialize Fraud Detection Service (CPU only)
+        logger.info("🛡️ Initializing Fraud Detection Service...")
+        fraud_service = FraudDetectionService()
+        await fraud_service.initialize()
+        
+        # Initialize Image Analysis Service (CPU only)
+        logger.info("🖼️ Initializing Image Analysis Service...")
+        image_service = ImageAnalysisService()
+        await image_service.initialize()
+        
+        # Initialize Document Validator
+        logger.info("📋 Initializing Document Validator...")
+        document_validator = DocumentValidator()
+        
+        # Test Google Gemini connection (optional)
+        try:
+            from services.gemini_service import GeminiService
+            gemini_service = GeminiService()
+            test_result = await gemini_service.test_connection()
+            if test_result:
+                logger.info("✅ Google Gemini connected successfully!")
+            else:
+                logger.warning("⚠️ Google Gemini connection failed (optional)")
+        except Exception as e:
+            logger.warning(f"⚠️ Google Gemini not available (optional): {e}")
+        
+        logger.info("✅ AI Service initialized successfully (CPU Mode)!")
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize AI Service: {e}")
+        raise
+    
+    yield
+    
+    # Shutdown
+    logger.info("🛑 Shutting down AI Service...")
+
+# Create FastAPI app with lifespan
 app = FastAPI(
-    title="ChainSureAI - AI Processing Service",
-    description="AI-powered document processing, OCR, and fraud detection for insurance claims",
-    version="1.0.0",
+    title="ChainSureAI AI Service",
+    description="CPU-powered AI processing for insurance claims, documents, and fraud detection",
+    version="2.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
-# CORS middleware
+# CORS middleware for frontend integration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure properly in production
+    allow_origins=["http://localhost:3001", "http://localhost:3000"],  # Frontend and backend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Security
-security = HTTPBearer()
+# Dependency to get client info
+async def get_client_info(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Verify API key and get client information"""
+    try:
+        api_key = credentials.credentials
+        client_info = await verify_api_key(api_key)
+        
+        if not client_info:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        
+        return client_info
+    except Exception as e:
+        logger.error(f"Authentication error: {e}")
+        # For development, allow basic access
+        return {"client_name": "development", "api_key": "dev_key"}
 
-# Initialize services
-ocr_service = OCRService()
-fraud_service = FraudDetectionService()
-image_service = ImageAnalysisService()
-doc_validator = DocumentValidator()
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize AI models on startup"""
-    logger.info("🚀 Starting ChainSureAI AI Service...")
-    
-    # Initialize all services
-    await ocr_service.initialize()
-    await fraud_service.initialize()
-    await image_service.initialize()
-    
-    logger.info("✅ AI Service initialized successfully!")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    logger.info("🛑 Shutting down AI Service...")
-
-@app.get("/")
+# Health check endpoints
+@app.get("/", tags=["Health"])
 async def root():
-    """Health check endpoint"""
+    """Root endpoint with basic info"""
     return {
-        "service": "ChainSureAI AI Processing Service",
-        "status": "healthy",
-        "version": "1.0.0",
+        "service": "ChainSureAI AI Service",
+        "version": "2.0.0",
+        "status": "running",
+        "mode": "CPU_ONLY",
+        "port": AI_SERVICE_CONFIG["port"],
+        "gpu_enabled": False,
         "endpoints": {
-            "docs": "/docs",
             "health": "/health",
+            "docs": "/docs",
             "analyze_claim": "/analyze-claim",
             "process_document": "/process-document",
-            "analyze_image": "/analyze-image"
+            "analyze_image": "/analyze-image",
+            "gemini_analyze": "/gemini-analyze"
         }
     }
 
-@app.get("/health")
+@app.get("/health", tags=["Health"])
 async def health_check():
-    """Detailed health check"""
-    return {
+    """Comprehensive health check"""
+    health_status = {
         "status": "healthy",
+        "mode": "CPU_ONLY",
+        "timestamp": time.time(),
         "services": {
-            "ocr": ocr_service.is_ready(),
-            "fraud_detection": fraud_service.is_ready(),
-            "image_analysis": image_service.is_ready(),
-            "document_validator": doc_validator.is_ready()
+            "ocr": ocr_service.is_ready() if ocr_service else False,
+            "fraud_detection": fraud_service.is_ready() if fraud_service else False,
+            "image_analysis": image_service.is_ready() if image_service else False,
+            "document_validator": document_validator.is_ready() if document_validator else False,
         },
         "models_loaded": {
-            "tesseract": ocr_service.tesseract_ready,
-            "easyocr": ocr_service.easyocr_ready,
-            "fraud_model": fraud_service.model_ready,
-            "image_model": image_service.model_ready
+            "tesseract": ocr_service.tesseract_ready if ocr_service else False,
+            "easyocr": ocr_service.easyocr_ready if ocr_service else False,
+            "fraud_model": fraud_service.model_ready if fraud_service else False,
+            "image_model": image_service.model_ready if image_service else False,
+        },
+        "system": {
+            "gpu_available": False,
+            "cpu_mode": True,
+            "port": AI_SERVICE_CONFIG["port"],
+            "max_file_size_mb": AI_SERVICE_CONFIG["max_file_size_mb"],
+            "processing_timeout": AI_SERVICE_CONFIG["processing_timeout_seconds"]
         }
     }
+    
+    # Check if any critical service is down
+    critical_services = ["ocr", "fraud_detection", "image_analysis"]
+    if not all(health_status["services"][service] for service in critical_services):
+        health_status["status"] = "degraded"
+    
+    return health_status
 
-@app.post("/analyze-claim", response_model=ClaimAnalysisResponse)
+# Main AI endpoints
+@app.post("/analyze-claim", response_model=ClaimAnalysisResponse, tags=["AI Analysis"])
 async def analyze_claim(
     request: ClaimAnalysisRequest,
-    credentials: HTTPAuthorizationCredentials = Security(security)
+    client_info: dict = Depends(get_client_info),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    """
-    Complete claim analysis including document processing, fraud detection, and amount estimation
-    """
+    """Comprehensive claim analysis with AI"""
+    start_time = time.time()
+    client_name = client_info.get("client_name", "unknown")
+    
     try:
-        # Verify API key
-        await verify_api_key(credentials.credentials)
+        # Log request
+        logger.info(f"🔍 Analyzing claim {request.claimId} for {client_name}")
         
-        logger.info(f"🔍 Analyzing claim {request.claimId} of type {request.claimType}")
+        if not fraud_service or not fraud_service.is_ready():
+            raise HTTPException(status_code=503, detail="Fraud detection service not available")
         
-        # Initialize analysis results
-        analysis_results = {
-            "claimId": request.claimId,
-            "claimType": request.claimType,
-            "fraudScore": 0.0,
-            "authenticityScore": 1.0,
-            "estimatedAmount": 0,
-            "confidence": 0.0,
-            "detectedIssues": [],
-            "ocrResults": {},
-            "imageAnalysis": {},
-            "documentValidation": {},
-            "recommendation": "review"
-        }
-        
-        # Process documents if provided
-        if request.documents:
-            logger.info(f"📄 Processing {len(request.documents)} documents")
-            doc_results = await process_documents_batch(request.documents)
-            analysis_results["ocrResults"] = doc_results
-            
-            # Extract text for fraud analysis
-            extracted_text = " ".join([doc.get("text", "") for doc in doc_results.values()])
-            
-            # Run fraud detection on extracted text
-            fraud_result = await fraud_service.analyze_text(
-                extracted_text, 
-                request.claimType, 
-                request.requestedAmount
-            )
-            analysis_results["fraudScore"] = fraud_result["fraud_score"]
-            analysis_results["detectedIssues"].extend(fraud_result["issues"])
-        
-        # Process images if provided
-        if request.images:
-            logger.info(f"🖼️ Processing {len(request.images)} images")
-            img_results = await process_images_batch(request.images, request.claimType)
-            analysis_results["imageAnalysis"] = img_results
-            
-            # Update authenticity score based on image analysis
-            avg_authenticity = sum([img.get("authenticity_score", 1.0) for img in img_results.values()]) / len(img_results)
-            analysis_results["authenticityScore"] = avg_authenticity
-        
-        # Estimate claim amount based on type and evidence
-        estimated_amount = await estimate_claim_amount(
-            request.claimType,
-            request.requestedAmount,
-            analysis_results["ocrResults"],
-            analysis_results["imageAnalysis"],
-            request.description
+        # Perform fraud analysis
+        fraud_analysis = await fraud_service.analyze_text(
+            request.description,
+            request.claimType.value,
+            request.requestedAmount
         )
-        analysis_results["estimatedAmount"] = estimated_amount
         
-        # Calculate overall confidence
-        confidence = calculate_confidence_score(analysis_results)
-        analysis_results["confidence"] = confidence
+        # Prepare response
+        response = ClaimAnalysisResponse(
+            claimId=request.claimId,
+            claimType=request.claimType,
+            fraudScore=fraud_analysis["fraud_score"],
+            authenticityScore=fraud_analysis.get("confidence", 0.8),
+            estimatedAmount=request.requestedAmount,
+            confidence=fraud_analysis.get("confidence", 0.8),
+            detectedIssues=fraud_analysis.get("issues", []),
+            fraudAnalysis=FraudAnalysisResult(
+                fraudScore=fraud_analysis["fraud_score"],
+                riskFactors=fraud_analysis.get("risk_factors", []),
+                consistencyCheck={},
+                anomalies=fraud_analysis.get("issues", [])
+            ),
+            recommendation=fraud_analysis.get("recommendation", "manual_review"),
+            reasoning=f"CPU-based AI analysis completed with {fraud_analysis.get('confidence', 0.8):.1%} confidence",
+            processedAt=time.strftime("%Y-%m-%d %H:%M:%S"),
+            processingTime=time.time() - start_time
+        )
         
-        # Make recommendation
-        recommendation = make_recommendation(analysis_results)
-        analysis_results["recommendation"] = recommendation
-        
-        logger.info(f"✅ Claim analysis completed: fraud={analysis_results['fraudScore']:.2f}, confidence={confidence:.2f}")
-        
-        return ClaimAnalysisResponse(**analysis_results)
+        logger.info(f"✅ Claim analysis completed in {time.time() - start_time:.2f}s")
+        return response
         
     except Exception as e:
-        logger.error(f"❌ Error analyzing claim: {str(e)}")
+        logger.error(f"❌ Error analyzing claim: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
-@app.post("/process-document", response_model=DocumentProcessingResponse)
+@app.post("/process-document", response_model=DocumentProcessingResponse, tags=["Document Processing"])
 async def process_document(
     file: UploadFile = File(...),
-    document_type: str = "general",
-    credentials: HTTPAuthorizationCredentials = Security(security)
+    document_type: str = Form("general"),
+    client_info: dict = Depends(get_client_info),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    """
-    Process a single document with OCR and validation
-    """
+    """Process document with OCR and validation"""
+    start_time = time.time()
+    client_name = client_info.get("client_name", "unknown")
+    
     try:
-        await verify_api_key(credentials.credentials)
-        
-        logger.info(f"📄 Processing document: {file.filename} (type: {document_type})")
-        
-        # Read file content
+        # File size check
         content = await file.read()
+        if len(content) > AI_SERVICE_CONFIG["max_file_size_mb"] * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="File too large")
         
-        # Process with OCR
+        logger.info(f"📄 Processing document {file.filename} for {client_name}")
+        
+        if not ocr_service or not ocr_service.is_ready():
+            raise HTTPException(status_code=503, detail="OCR service not available")
+        
+        # Process document
         ocr_result = await ocr_service.process_document(content, file.filename, document_type)
         
         # Validate document
-        validation_result = await doc_validator.validate_document(
-            content, 
-            file.filename, 
-            document_type,
-            ocr_result["text"]
+        validation_result = await document_validator.validate_document(
+            content, file.filename, document_type, ocr_result["text"]
         )
         
-        result = {
-            "filename": file.filename,
-            "document_type": document_type,
-            "text": ocr_result["text"],
-            "confidence": ocr_result["confidence"],
-            "metadata": ocr_result["metadata"],
-            "validation": validation_result,
-            "processing_time": ocr_result["processing_time"]
-        }
+        # Prepare response
+        response = DocumentProcessingResponse(
+            filename=file.filename,
+            documentType=DocumentType(document_type),
+            status=AnalysisStatus.SUCCESS,
+            text=ocr_result["text"],
+            confidence=ocr_result["confidence"],
+            validation=DocumentValidation(
+                isValid=validation_result["is_valid"],
+                validationScore=validation_result["validation_score"],
+                issues=validation_result["issues"],
+                extractedData=validation_result["extracted_data"]
+            ),
+            extractedFields=ocr_result.get("structured_data", {}),
+            metadata=ocr_result.get("metadata", {}),
+            processingTime=time.time() - start_time
+        )
         
-        logger.info(f"✅ Document processed successfully: {file.filename}")
-        return DocumentProcessingResponse(**result)
+        logger.info(f"✅ Document processed in {time.time() - start_time:.2f}s")
+        return response
         
     except Exception as e:
-        logger.error(f"❌ Error processing document: {str(e)}")
+        logger.error(f"❌ Error processing document: {e}")
         raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
 
-@app.post("/analyze-image")
+@app.post("/analyze-image", tags=["Image Analysis"])
 async def analyze_image(
     file: UploadFile = File(...),
-    analysis_type: str = "general",
-    credentials: HTTPAuthorizationCredentials = Security(security)
+    analysis_type: str = Form("general"),
+    client_info: dict = Depends(get_client_info),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    """
-    Analyze image for authenticity, damage assessment, etc.
-    """
+    """Analyze image for authenticity and damage assessment"""
+    start_time = time.time()
+    client_name = client_info.get("client_name", "unknown")
+    
     try:
-        await verify_api_key(credentials.credentials)
+        # File validation
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
         
-        logger.info(f"🖼️ Analyzing image: {file.filename} (type: {analysis_type})")
-        
-        # Read file content
         content = await file.read()
+        if len(content) > AI_SERVICE_CONFIG["max_file_size_mb"] * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="File too large")
+        
+        logger.info(f"🖼️ Analyzing image {file.filename} for {client_name}")
+        
+        if not image_service or not image_service.is_ready():
+            raise HTTPException(status_code=503, detail="Image analysis service not available")
         
         # Analyze image
-        result = await image_service.analyze_image(content, file.filename, analysis_type)
+        analysis_result = await image_service.analyze_image(content, file.filename, analysis_type)
         
-        logger.info(f"✅ Image analyzed successfully: {file.filename}")
+        logger.info(f"✅ Image analyzed in {time.time() - start_time:.2f}s")
+        return analysis_result
+        
+    except Exception as e:
+        logger.error(f"❌ Error analyzing image: {e}")
+        raise HTTPException(status_code=500, detail=f"Image analysis failed: {str(e)}")
+
+@app.post("/gemini-analyze", tags=["Advanced AI"])
+async def gemini_analyze(
+    data: dict,
+    client_info: dict = Depends(get_client_info),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Advanced analysis using Google Gemini"""
+    start_time = time.time()
+    client_name = client_info.get("client_name", "unknown")
+    
+    try:
+        logger.info(f"🤖 Gemini analysis for {client_name}")
+        
+        from services.gemini_service import GeminiService
+        gemini_service = GeminiService()
+        
+        # Process with Gemini
+        result = await gemini_service.analyze_claim_advanced(
+            document_text=data.get("document_text", ""),
+            claim_type=data.get("claim_type", "general"),
+            images=data.get("images", [])
+        )
+        
+        logger.info(f"✅ Gemini analysis completed in {time.time() - start_time:.2f}s")
         return result
         
     except Exception as e:
-        logger.error(f"❌ Error analyzing image: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Image analysis failed: {str(e)}")
+        logger.error(f"❌ Gemini analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Gemini analysis failed: {str(e)}")
 
-@app.post("/batch-process")
-async def batch_process_documents(
-    files: List[UploadFile] = File(...),
-    document_types: List[str] = None,
-    credentials: HTTPAuthorizationCredentials = Security(security)
-):
-    """
-    Process multiple documents in batch
-    """
-    try:
-        await verify_api_key(credentials.credentials)
-        
-        logger.info(f"📄 Batch processing {len(files)} documents")
-        
-        if document_types and len(document_types) != len(files):
-            raise HTTPException(status_code=400, detail="Document types list must match files list length")
-        
-        results = []
-        for i, file in enumerate(files):
-            doc_type = document_types[i] if document_types else "general"
-            content = await file.read()
-            
-            # Process each document
-            ocr_result = await ocr_service.process_document(content, file.filename, doc_type)
-            validation_result = await doc_validator.validate_document(
-                content, file.filename, doc_type, ocr_result["text"]
-            )
-            
-            results.append({
-                "filename": file.filename,
-                "document_type": doc_type,
-                "text": ocr_result["text"],
-                "confidence": ocr_result["confidence"],
-                "validation": validation_result
-            })
-        
-        logger.info(f"✅ Batch processing completed: {len(results)} documents")
-        return {"results": results, "total_processed": len(results)}
-        
-    except Exception as e:
-        logger.error(f"❌ Error in batch processing: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Batch processing failed: {str(e)}")
+@app.post("/health-check", tags=["Health"])
+async def health_check_endpoint(client_info: dict = Depends(get_client_info)):
+    """Authenticated health check for monitoring"""
+    return await health_check()
 
-# Helper functions
-async def process_documents_batch(document_hashes: List[str]) -> Dict[str, Any]:
-    """Process multiple documents from IPFS hashes"""
-    results = {}
-    for doc_hash in document_hashes:
-        try:
-            # In a real implementation, fetch from IPFS
-            # For now, simulate processing
-            results[doc_hash] = {
-                "text": f"Processed document content for {doc_hash}",
-                "confidence": 0.95,
-                "document_type": "medical_bill",
-                "extracted_amount": 1500.00
-            }
-        except Exception as e:
-            logger.error(f"Error processing document {doc_hash}: {e}")
-            results[doc_hash] = {"error": str(e)}
-    
-    return results
+# Error handlers
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail, "timestamp": time.time()}
+    )
 
-async def process_images_batch(image_hashes: List[str], claim_type: str) -> Dict[str, Any]:
-    """Process multiple images from IPFS hashes"""
-    results = {}
-    for img_hash in image_hashes:
-        try:
-            # In a real implementation, fetch from IPFS
-            # For now, simulate processing
-            results[img_hash] = {
-                "authenticity_score": 0.92,
-                "damage_assessment": "moderate_damage" if claim_type == "vehicle" else "visible_injury",
-                "estimated_cost": 2000.00,
-                "confidence": 0.88
-            }
-        except Exception as e:
-            logger.error(f"Error processing image {img_hash}: {e}")
-            results[img_hash] = {"error": str(e)}
-    
-    return results
-
-async def estimate_claim_amount(
-    claim_type: str,
-    requested_amount: float,
-    ocr_results: Dict,
-    image_results: Dict,
-    description: str
-) -> float:
-    """Estimate appropriate claim amount based on evidence"""
-    try:
-        # Extract amounts from documents
-        doc_amounts = []
-        for doc_data in ocr_results.values():
-            if isinstance(doc_data, dict) and "extracted_amount" in doc_data:
-                doc_amounts.append(doc_data["extracted_amount"])
-        
-        # Extract amounts from image analysis
-        img_amounts = []
-        for img_data in image_results.values():
-            if isinstance(img_data, dict) and "estimated_cost" in img_data:
-                img_amounts.append(img_data["estimated_cost"])
-        
-        # Calculate base estimate
-        if doc_amounts:
-            base_estimate = max(doc_amounts)
-        elif img_amounts:
-            base_estimate = max(img_amounts)
-        else:
-            # Use claim type based estimation
-            base_estimate = estimate_by_claim_type(claim_type, description)
-        
-        # Adjust based on requested amount
-        if base_estimate > requested_amount * 1.5:
-            # Estimated amount is much higher than requested, cap it
-            return min(base_estimate, requested_amount * 1.2)
-        elif base_estimate < requested_amount * 0.5:
-            # Estimated amount is much lower than requested, investigate
-            return base_estimate
-        else:
-            # Reasonable range
-            return base_estimate
-            
-    except Exception as e:
-        logger.error(f"Error estimating claim amount: {e}")
-        return requested_amount * 0.8  # Conservative estimate
-
-def estimate_by_claim_type(claim_type: str, description: str) -> float:
-    """Estimate amount based on claim type and description"""
-    base_estimates = {
-        "health": 1000.0,
-        "vehicle": 2500.0,
-        "travel": 500.0,
-        "product_warranty": 300.0,
-        "pet": 800.0,
-        "agricultural": 5000.0
-    }
-    
-    base = base_estimates.get(claim_type, 1000.0)
-    
-    # Adjust based on description keywords
-    if any(word in description.lower() for word in ["emergency", "urgent", "critical"]):
-        base *= 1.5
-    elif any(word in description.lower() for word in ["minor", "small", "slight"]):
-        base *= 0.7
-    
-    return base
-
-def calculate_confidence_score(analysis_results: Dict) -> float:
-    """Calculate overall confidence score for the analysis"""
-    try:
-        scores = []
-        
-        # OCR confidence
-        if analysis_results["ocrResults"]:
-            ocr_confidences = [
-                doc.get("confidence", 0.5) 
-                for doc in analysis_results["ocrResults"].values() 
-                if isinstance(doc, dict)
-            ]
-            if ocr_confidences:
-                scores.append(sum(ocr_confidences) / len(ocr_confidences))
-        
-        # Image analysis confidence
-        if analysis_results["imageAnalysis"]:
-            img_confidences = [
-                img.get("confidence", 0.5) 
-                for img in analysis_results["imageAnalysis"].values() 
-                if isinstance(img, dict)
-            ]
-            if img_confidences:
-                scores.append(sum(img_confidences) / len(img_confidences))
-        
-        # Fraud score (inverse relationship)
-        fraud_confidence = 1.0 - analysis_results["fraudScore"]
-        scores.append(fraud_confidence)
-        
-        # Authenticity score
-        scores.append(analysis_results["authenticityScore"])
-        
-        return sum(scores) / len(scores) if scores else 0.5
-        
-    except Exception as e:
-        logger.error(f"Error calculating confidence: {e}")
-        return 0.5
-
-def make_recommendation(analysis_results: Dict) -> str:
-    """Make final recommendation based on analysis"""
-    try:
-        fraud_score = analysis_results["fraudScore"]
-        confidence = analysis_results["confidence"]
-        authenticity = analysis_results["authenticityScore"]
-        
-        if fraud_score > 0.7 or authenticity < 0.3:
-            return "reject"
-        elif fraud_score < 0.3 and confidence > 0.8 and authenticity > 0.8:
-            return "approve"
-        else:
-            return "review"
-            
-    except Exception as e:
-        logger.error(f"Error making recommendation: {e}")
-        return "review"
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    logger.error(f"Unhandled exception: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "timestamp": time.time()}
+    )
 
 if __name__ == "__main__":
+    logger.info(f"🚀 Starting ChainSureAI AI Service on port {AI_SERVICE_CONFIG['port']}")
+    logger.info(f"🖥️ Mode: CPU ONLY (No GPU)")
+    logger.info(f"📁 Max file size: {AI_SERVICE_CONFIG['max_file_size_mb']}MB")
+    logger.info(f"⏱️ Processing timeout: {AI_SERVICE_CONFIG['processing_timeout_seconds']}s")
+    
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 8001)),
+        host=AI_SERVICE_CONFIG["host"],
+        port=AI_SERVICE_CONFIG["port"],
         reload=True,
-        log_level="info"
+        log_level=AI_SERVICE_CONFIG["log_level"].lower(),
+        access_log=True,
     ) 

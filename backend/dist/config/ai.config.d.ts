@@ -1,0 +1,35 @@
+export declare const aiConfig: (() => {
+    endpoint: string;
+    apiKey: string;
+    timeout: number;
+    maxRetries: number;
+    retryDelay: number;
+    fraudThreshold: number;
+    confidenceThreshold: number;
+    enableFraudDetection: boolean;
+    enableDocumentAnalysis: boolean;
+    enableImageAnalysis: boolean;
+    maxFileSize: number;
+    allowedFileTypes: string[];
+    ocrEngine: string;
+    imageQuality: string;
+    cacheResults: boolean;
+    cacheExpiry: number;
+}) & import("@nestjs/config").ConfigFactoryKeyHost<{
+    endpoint: string;
+    apiKey: string;
+    timeout: number;
+    maxRetries: number;
+    retryDelay: number;
+    fraudThreshold: number;
+    confidenceThreshold: number;
+    enableFraudDetection: boolean;
+    enableDocumentAnalysis: boolean;
+    enableImageAnalysis: boolean;
+    maxFileSize: number;
+    allowedFileTypes: string[];
+    ocrEngine: string;
+    imageQuality: string;
+    cacheResults: boolean;
+    cacheExpiry: number;
+}>;

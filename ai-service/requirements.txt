@@ -23,4 +23,6 @@ cryptography==41.0.7
 imagehash==4.3.1
 transformers==4.35.2
 datasets==2.14.6
-accelerate==0.24.1 
+accelerate==0.24.1
+google-generativeai==0.3.2
+google-ai-generativelanguage==0.4.0 

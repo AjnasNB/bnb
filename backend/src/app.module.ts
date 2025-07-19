@@ -1,52 +1,72 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { MongooseModule } from '@nestjs/mongoose';
-import { ScheduleModule } from '@nestjs/schedule';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { MulterModule } from '@nestjs/platform-express';
 
-// Feature modules
-import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { PoliciesModule } from './policies/policies.module';
-import { ClaimsModule } from './claims/claims.module';
-import { BlockchainModule } from './blockchain/blockchain.module';
-import { FilesModule } from './files/files.module';
-import { AdminModule } from './admin/admin.module';
+// Import our config
+import { AppConfig } from './config/app.config';
 
-// Common modules
-import { DatabaseModule } from './common/database/database.module';
+// Import modules
+import { HealthModule } from './modules/health/health.module';
+import { PoliciesModule } from './modules/policies/policies.module';
+import { ClaimsModule } from './modules/claims/claims.module';
+import { UsersModule } from './modules/users/users.module';
+import { BlockchainModule } from './modules/blockchain/blockchain.module';
+import { AIModule } from './modules/ai/ai.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+
+// Import entities
+import { User } from './modules/users/entities/user.entity';
+import { Policy } from './modules/policies/entities/policy.entity';
+import { Claim } from './modules/claims/entities/claim.entity';
+import { BlockchainTransaction } from './modules/blockchain/entities/blockchain-transaction.entity';
+import { Notification } from './modules/notifications/entities/notification.entity';
 
 @Module({
   imports: [
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      load: [() => AppConfig],
     }),
 
-    // Database
-    MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI'),
-        dbName: configService.get<string>('DATABASE_NAME'),
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      }),
-      inject: [ConfigService],
+    // Database configuration
+    TypeOrmModule.forRoot({
+      type: 'sqlite',
+      database: AppConfig.database.path,
+      entities: [User, Policy, Claim, BlockchainTransaction, Notification],
+      synchronize: AppConfig.database.synchronize,
+      autoLoadEntities: AppConfig.database.autoLoadEntities,
+      logging: AppConfig.database.logging,
     }),
 
-    // Task scheduling
-    ScheduleModule.forRoot(),
+    // Rate limiting
+    ThrottlerModule.forRoot([{
+      ttl: AppConfig.rateLimit.ttl,
+      limit: AppConfig.rateLimit.max,
+    }]),
+
+    // File upload configuration
+    MulterModule.register({
+      dest: AppConfig.upload.uploadPath,
+      limits: {
+        fileSize: AppConfig.upload.maxFileSize,
+      },
+    }),
 
     // Feature modules
-    AuthModule,
+    HealthModule,
     UsersModule,
     PoliciesModule,
     ClaimsModule,
     BlockchainModule,
-    FilesModule,
-    AdminModule,
-    DatabaseModule,
+    AIModule,
+    NotificationsModule,
+    AnalyticsModule,
   ],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {} 

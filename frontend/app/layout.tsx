@@ -1,46 +1,62 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
+import { Web3Provider } from "./context/Web3Context";
 import "./globals.css";
-import { Providers } from "./providers";
-import { Header } from "./components/Header";
-import { Footer } from "./components/Footer";
-import { Toaster } from "react-hot-toast";
 
-const inter = Inter({ subsets: ["latin"] });
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: "ChainSureAI - Blockchain Insurance Platform",
-  description: "AI-powered insurance claims processing on Binance Smart Chain",
-  keywords: ["blockchain", "insurance", "AI", "BSC", "DeFi", "claims"],
+  title: "ChainSure - Community-Governed Mutual Insurance",
+  description: "Revolutionary blockchain-native insurance platform built on Binance Smart Chain. Join a community where every policyholder is a stakeholder with AI-powered claims processing and transparent governance.",
+  keywords: ["blockchain", "insurance", "DeFi", "BSC", "mutual insurance", "community governance", "AI claims", "NFT policies"],
+  authors: [{ name: "ChainSure Team" }],
+  openGraph: {
+    title: "ChainSure - Community-Governed Mutual Insurance",
+    description: "Revolutionary blockchain-native insurance platform built on Binance Smart Chain",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ChainSure - Community-Governed Mutual Insurance",
+    description: "Revolutionary blockchain-native insurance platform built on Binance Smart Chain",
+  },
+  robots: "index, follow",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-gray-50 min-h-screen`}>
-        <Providers>
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-grow">
-              {children}
-            </main>
-            <Footer />
-          </div>
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-              },
-            }}
-          />
-        </Providers>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Add window.ethereum type declaration
+              if (typeof window !== 'undefined') {
+                window.ethereum = window.ethereum || {};
+              }
+            `,
+          }}
+        />
+      </head>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        <Web3Provider>
+          {children}
+        </Web3Provider>
       </body>
     </html>
   );

@@ -1,0 +1,14 @@
+{
+  "chainId": 97,
+  "network": "bsc_testnet",
+  "contracts": {
+    "stablecoin": "0x644Ed1D005Eadbaa4D4e05484AEa8e52A4DB76c8",
+    "governanceToken": "0xD0aa884859B93aFF4324B909fAeC619096f0Cc05",
+    "policyNFT": "0x2e2acdf394319b365Cc46cF587ab8a2d25Cb3312",
+    "claimsEngine": "0x528Bf18723c2021420070e0bB2912F881a93ca53",
+    "surplusDistributor": "0x95b0821Dc5C8d272Cc34C593faa76f62E7EAA2Ac",
+    "governance": "0x364424CBf264F54A0fFE12D99F3902B398fc0B36"
+  },
+  "rpcUrl": "https://data-seed-prebsc-1-s1.binance.org:8545/",
+  "blockExplorer": "https://testnet.bscscan.com"
+} 

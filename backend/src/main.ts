@@ -1,53 +1,93 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { WinstonModule } from 'nest-winston';
+import * as compression from 'compression';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { createWinstonLogger } from './common/logger/winston.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  const configService = app.get(ConfigService);
+  const logger = new Logger('Bootstrap');
+  
+  // Create winston logger
+  const winstonLogger = createWinstonLogger();
+  
+  const app = await NestFactory.create(AppModule, {
+    logger: WinstonModule.createLogger(winstonLogger),
+  });
 
-  // Global validation pipe
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>('PORT', 3000);
+  const environment = configService.get<string>('NODE_ENV', 'development');
+
+  // Global configuration
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
 
+  // Security middleware
+  app.use(helmet());
+  app.use(compression());
+
   // CORS configuration
   app.enableCors({
-    origin: configService.get('CORS_ORIGIN', 'http://localhost:3000'),
+    origin: configService.get<string>('FRONTEND_URL', 'http://localhost:3001'),
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
-  // API prefix
-  const apiPrefix = configService.get('API_PREFIX', 'api/v1');
-  app.setGlobalPrefix(apiPrefix);
+  // Global prefix
+  app.setGlobalPrefix('api/v1');
 
   // Swagger documentation
-  const config = new DocumentBuilder()
-    .setTitle('ChainSureAI API')
-    .setDescription('Smart Insurance & Warranty Platform API')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addTag('auth', 'Authentication endpoints')
-    .addTag('users', 'User management')
-    .addTag('policies', 'Insurance policies')
-    .addTag('claims', 'Claims management')
-    .addTag('blockchain', 'Blockchain interactions')
-    .build();
-  
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup(`${apiPrefix}/docs`, app, document);
+  if (environment !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('ChainSure API')
+      .setDescription('Community-governed mutual insurance platform API')
+      .setVersion('1.0')
+      .addTag('authentication', 'User authentication and authorization')
+      .addTag('policies', 'Insurance policy management')
+      .addTag('claims', 'Claim submission and processing')
+      .addTag('governance', 'Community governance and voting')
+      .addTag('blockchain', 'Blockchain interaction utilities')
+      .addTag('ai', 'AI-powered analysis and fraud detection')
+      .addBearerAuth()
+      .build();
 
-  const port = configService.get('PORT', 3001);
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        tagsSorter: 'alpha',
+        operationsSorter: 'alpha',
+      },
+    });
+
+    logger.log(`📚 Swagger documentation available at http://localhost:${port}/api/docs`);
+  }
+
   await app.listen(port);
+
+  logger.log(`🚀 ChainSure Backend running on port ${port}`);
+  logger.log(`🌍 Environment: ${environment}`);
+  logger.log(`🔗 Health check: http://localhost:${port}/api/v1/health`);
   
-  console.log(`🚀 ChainSureAI Backend running on http://localhost:${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/${apiPrefix}/docs`);
+  if (environment !== 'production') {
+    logger.log(`📖 API Documentation: http://localhost:${port}/api/docs`);
+  }
 }
 
-bootstrap(); 
+bootstrap().catch((error) => {
+  console.error('❌ Failed to start application:', error);
+  process.exit(1);
+}); 

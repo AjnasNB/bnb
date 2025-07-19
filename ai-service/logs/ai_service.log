@@ -13,3 +13,90 @@
 2025-07-18 21:06:09 | INFO     | services.image_analysis_service:initialize:56 - ✅ Image Analysis Service initialized
 2025-07-18 21:06:09 | INFO     | main:startup_event:71 - ✅ AI Service initialized successfully!
 2025-07-18 21:06:09 | INFO     | main:shutdown_event:76 - 🛑 Shutting down AI Service...
+2025-07-19 12:12:31 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 12:12:37 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 12:12:38 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 12:12:38 | INFO     | main:startup_event:64 - 🚀 Starting ChainSureAI AI Service...
+2025-07-19 12:12:38 | INFO     | services.ocr_service:initialize:24 - 🔧 Initializing OCR Service...
+2025-07-19 12:12:38 | WARNING  | services.ocr_service:_init_tesseract:46 - ⚠️ Tesseract not available: tesseract is not installed or it's not in your PATH. See README file for more information.
+2025-07-19 12:14:57 | INFO     | services.ocr_service:_init_easyocr:54 - 📖 EasyOCR initialized
+2025-07-19 12:14:57 | INFO     | services.ocr_service:initialize:32 - ✅ OCR Service initialized successfully
+2025-07-19 12:14:57 | INFO     | services.fraud_detection_service:initialize:52 - 🔧 Initializing Fraud Detection Service...
+2025-07-19 12:14:57 | INFO     | services.fraud_detection_service:_load_models:472 - 📂 Using default fraud detection models
+2025-07-19 12:14:57 | INFO     | services.fraud_detection_service:initialize:74 - ✅ Fraud Detection Service initialized
+2025-07-19 12:14:57 | INFO     | services.image_analysis_service:initialize:47 - 🔧 Initializing Image Analysis Service...
+2025-07-19 12:14:57 | INFO     | services.image_analysis_service:_init_cv_models:73 - 📷 Computer vision models loaded
+2025-07-19 12:14:57 | INFO     | services.image_analysis_service:_init_damage_models:84 - 🔍 Damage assessment models loaded
+2025-07-19 12:14:57 | INFO     | services.image_analysis_service:initialize:56 - ✅ Image Analysis Service initialized
+2025-07-19 12:14:57 | INFO     | main:startup_event:71 - ✅ AI Service initialized successfully!
+2025-07-19 12:48:51 | INFO     | main:shutdown_event:76 - 🛑 Shutting down AI Service...
+2025-07-19 16:30:37 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 16:31:19 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 16:31:35 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 16:31:35 | INFO     | services.gemini_service:__init__:30 - Gemini service initialized with model: gemini-2.0-flash-exp
+2025-07-19 16:31:44 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 16:31:44 | INFO     | services.gemini_service:__init__:30 - Gemini service initialized with model: gemini-2.0-flash-exp
+2025-07-19 16:31:44 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 16:31:44 | INFO     | services.gemini_service:__init__:30 - Gemini service initialized with model: gemini-2.0-flash-exp
+2025-07-19 16:31:44 | INFO     | main:startup_event:66 - 🚀 Starting ChainSureAI AI Service...
+2025-07-19 16:31:44 | INFO     | services.ocr_service:initialize:24 - 🔧 Initializing OCR Service...
+2025-07-19 16:31:44 | WARNING  | services.ocr_service:_init_tesseract:46 - ⚠️ Tesseract not available: tesseract is not installed or it's not in your PATH. See README file for more information.
+2025-07-19 16:31:46 | INFO     | services.ocr_service:_init_easyocr:54 - 📖 EasyOCR initialized
+2025-07-19 16:31:46 | INFO     | services.ocr_service:initialize:32 - ✅ OCR Service initialized successfully
+2025-07-19 16:31:46 | INFO     | services.fraud_detection_service:initialize:52 - 🔧 Initializing Fraud Detection Service...
+2025-07-19 16:31:46 | INFO     | services.fraud_detection_service:_load_models:472 - 📂 Using default fraud detection models
+2025-07-19 16:31:46 | INFO     | services.fraud_detection_service:initialize:74 - ✅ Fraud Detection Service initialized
+2025-07-19 16:31:46 | INFO     | services.image_analysis_service:initialize:47 - 🔧 Initializing Image Analysis Service...
+2025-07-19 16:31:46 | INFO     | services.image_analysis_service:_init_cv_models:73 - 📷 Computer vision models loaded
+2025-07-19 16:31:46 | INFO     | services.image_analysis_service:_init_damage_models:84 - 🔍 Damage assessment models loaded
+2025-07-19 16:31:46 | INFO     | services.image_analysis_service:initialize:56 - ✅ Image Analysis Service initialized
+2025-07-19 16:31:47 | INFO     | main:startup_event:76 - ✅ Google Gemini 2.5 Flash connected successfully!
+2025-07-19 16:31:47 | INFO     | main:startup_event:80 - ✅ AI Service initialized successfully!
+2025-07-19 17:41:27 | INFO     | main:shutdown_event:85 - 🛑 Shutting down AI Service...
+2025-07-19 17:41:43 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 17:42:12 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 17:48:35 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 20:22:41 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 20:28:28 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 20:28:28 | INFO     | __main__:<module>:45 - 🖥️ AI Service configured for CPU-only operation
+2025-07-19 20:28:28 | INFO     | __main__:<module>:393 - 🚀 Starting ChainSureAI AI Service on port 8001
+2025-07-19 20:28:28 | INFO     | __main__:<module>:394 - 🖥️ Mode: CPU ONLY (No GPU)
+2025-07-19 20:28:28 | INFO     | __main__:<module>:395 - 📁 Max file size: 50MB
+2025-07-19 20:28:28 | INFO     | __main__:<module>:396 - ⏱️ Processing timeout: 300s
+2025-07-19 20:28:34 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 20:28:34 | INFO     | __mp_main__:<module>:45 - 🖥️ AI Service configured for CPU-only operation
+2025-07-19 20:28:34 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 20:28:34 | INFO     | main:<module>:45 - 🖥️ AI Service configured for CPU-only operation
+2025-07-19 20:28:34 | INFO     | main:lifespan:60 - 🚀 Starting ChainSureAI AI Service (CPU Mode)...
+2025-07-19 20:28:34 | INFO     | main:lifespan:66 - 📖 Initializing OCR Service...
+2025-07-19 20:28:34 | INFO     | services.ocr_service:initialize:24 - 🔧 Initializing OCR Service...
+2025-07-19 20:28:34 | WARNING  | services.ocr_service:_init_tesseract:46 - ⚠️ Tesseract not available: tesseract is not installed or it's not in your PATH. See README file for more information.
+2025-07-19 20:28:34 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 20:28:34 | INFO     | __main__:<module>:45 - 🖥️ AI Service configured for CPU-only operation
+2025-07-19 20:28:34 | INFO     | __main__:<module>:393 - 🚀 Starting ChainSureAI AI Service on port 8001
+2025-07-19 20:28:34 | INFO     | __main__:<module>:394 - 🖥️ Mode: CPU ONLY (No GPU)
+2025-07-19 20:28:34 | INFO     | __main__:<module>:395 - 📁 Max file size: 50MB
+2025-07-19 20:28:34 | INFO     | __main__:<module>:396 - ⏱️ Processing timeout: 300s
+2025-07-19 20:28:37 | INFO     | services.ocr_service:_init_easyocr:54 - 📖 EasyOCR initialized
+2025-07-19 20:28:37 | INFO     | services.ocr_service:initialize:32 - ✅ OCR Service initialized successfully
+2025-07-19 20:28:37 | INFO     | main:lifespan:71 - 🛡️ Initializing Fraud Detection Service...
+2025-07-19 20:28:37 | INFO     | services.fraud_detection_service:initialize:52 - 🔧 Initializing Fraud Detection Service...
+2025-07-19 20:28:37 | INFO     | services.fraud_detection_service:_load_models:472 - 📂 Using default fraud detection models
+2025-07-19 20:28:37 | INFO     | services.fraud_detection_service:initialize:74 - ✅ Fraud Detection Service initialized
+2025-07-19 20:28:37 | INFO     | main:lifespan:76 - 🖼️ Initializing Image Analysis Service...
+2025-07-19 20:28:37 | INFO     | services.image_analysis_service:initialize:47 - 🔧 Initializing Image Analysis Service...
+2025-07-19 20:28:37 | INFO     | services.image_analysis_service:_init_cv_models:73 - 📷 Computer vision models loaded
+2025-07-19 20:28:37 | INFO     | services.image_analysis_service:_init_damage_models:84 - 🔍 Damage assessment models loaded
+2025-07-19 20:28:37 | INFO     | services.image_analysis_service:initialize:56 - ✅ Image Analysis Service initialized
+2025-07-19 20:28:37 | INFO     | main:lifespan:81 - 📋 Initializing Document Validator...
+2025-07-19 20:28:38 | WARNING  | services.gemini_service:__init__:22 - GOOGLE_API_KEY not found - Gemini service will not be available
+2025-07-19 20:28:38 | WARNING  | main:lifespan:92 - ⚠️ Google Gemini connection failed (optional)
+2025-07-19 20:28:38 | INFO     | main:lifespan:96 - ✅ AI Service initialized successfully (CPU Mode)!
+2025-07-19 20:28:43 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 20:28:43 | INFO     | __mp_main__:<module>:45 - 🖥️ AI Service configured for CPU-only operation
+2025-07-19 20:28:43 | INFO     | utils.logger:setup_logger:57 - 🚀 Logger initialized for ChainSureAI AI Service
+2025-07-19 20:28:43 | INFO     | main:<module>:45 - 🖥️ AI Service configured for CPU-only operation
+2025-07-19 20:28:43 | INFO     | main:lifespan:60 - 🚀 Starting ChainSureAI AI Service (CPU Mode)...
+2025-07-19 20:28:43 | INFO     | main:lifespan:66 - 📖 Initializing OCR Service...
+2025-07-19 20:28:43 | INFO     | services.ocr_service:initialize:24 - 🔧 Initializing OCR Service...
+2025-07-19 20:28:43 | WARNING  | services.ocr_service:_init_tesseract:46 - ⚠️ Tesseract not available: tesseract is not installed or it's not in your PATH. See README file for more information.
