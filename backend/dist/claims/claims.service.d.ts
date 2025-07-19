@@ -1,0 +1,30 @@
+import { Model } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
+import { Claim, ClaimDocument, ClaimStatus } from './claim.schema';
+import { CreateClaimDto } from './dto/create-claim.dto';
+import { UpdateClaimDto } from './dto/update-claim.dto';
+import { PoliciesService } from '../policies/policies.service';
+import { UsersService } from '../users/users.service';
+import { BlockchainService } from '../blockchain/blockchain.service';
+import { HttpService } from '@nestjs/axios';
+export declare class ClaimsService {
+    private claimModel;
+    private policiesService;
+    private usersService;
+    private blockchainService;
+    private httpService;
+    private configService;
+    constructor(claimModel: Model<ClaimDocument>, policiesService: PoliciesService, usersService: UsersService, blockchainService: BlockchainService, httpService: HttpService, configService: ConfigService);
+    create(createClaimDto: CreateClaimDto, userId: string): Promise<Claim>;
+    findAll(userId?: string): Promise<Claim[]>;
+    findOne(id: string): Promise<Claim>;
+    findUserClaims(userId: string): Promise<Claim[]>;
+    findByClaimNumber(claimNumber: string): Promise<Claim>;
+    update(id: string, updateClaimDto: UpdateClaimDto): Promise<Claim>;
+    updateStatus(id: string, status: ClaimStatus, adminNotes?: string): Promise<Claim>;
+    processWithAI(claimId: string): Promise<void>;
+    processPayment(claimId: string): Promise<void>;
+    getClaimStatistics(userId?: string): Promise<any>;
+    private generateClaimNumber;
+    remove(id: string): Promise<void>;
+}
