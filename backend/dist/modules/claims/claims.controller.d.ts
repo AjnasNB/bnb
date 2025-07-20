@@ -16,12 +16,38 @@ export declare class ClaimsController {
     }>;
     findOne(id: string): Promise<{
         success: boolean;
-        claim: import("./entities/claim.entity").Claim;
-        source: string;
-        message?: undefined;
+        claim: {
+            votingDetails: {
+                votesFor: string;
+                votesAgainst: string;
+                totalVotes: string;
+                votingEnds: string;
+            };
+            id: string;
+            userId: string;
+            policyId: string;
+            type: string;
+            status: string;
+            requestedAmount: string;
+            approvedAmount: string;
+            description: string;
+            documents: string[];
+            images: string[];
+            aiAnalysis: any;
+            reviewNotes: any;
+            transactionHash: string;
+            createdAt: Date;
+            updatedAt: Date;
+        };
     } | {
         success: boolean;
         claim: {
+            votingDetails: {
+                votesFor: string;
+                votesAgainst: string;
+                totalVotes: string;
+                votingEnds: string;
+            };
             claimId: string;
             policyId: any;
             claimant: any;
@@ -36,22 +62,18 @@ export declare class ClaimsController {
             contractAddress: string;
             explorerUrl: string;
         };
-        source: string;
-        message?: undefined;
     } | {
         success: boolean;
         claim: {
             id: string;
             claimId: string;
-            userId: string;
-            policyId: string;
-            type: string;
-            status: string;
-            requestedAmount: string;
-            approvedAmount: any;
+            policyTokenId: string;
+            claimant: string;
+            amount: string;
             description: string;
-            documents: string[];
-            images: any[];
+            status: string;
+            submittedAt: string;
+            evidenceHashes: string[];
             aiAnalysis: {
                 fraudScore: number;
                 authenticityScore: number;
@@ -59,26 +81,35 @@ export declare class ClaimsController {
                 reasoning: string;
                 confidence: number;
             };
-            reviewNotes: any;
-            transactionHash: string;
-            createdAt: string;
-            updatedAt: string;
             votingDetails: {
                 votesFor: string;
                 votesAgainst: string;
                 totalVotes: string;
                 votingEnds: string;
-                approvalPercentage: number;
-                jurors: string[];
-                averageAmount: string;
             };
         };
-        source: string;
-        message: string;
     }>;
     getClaimWithVotingDetails(id: string): Promise<{
         success: boolean;
         claim: {
+            votingDetails: any;
+            id: string;
+            claimId: string;
+            policyTokenId: string;
+            claimant: string;
+            amount: string;
+            description: string;
+            status: string;
+            submittedAt: string;
+            evidenceHashes: string[];
+            aiAnalysis: {
+                fraudScore: number;
+                authenticityScore: number;
+                recommendation: string;
+                reasoning: string;
+                confidence: number;
+            };
+        } | {
             votingDetails: any;
             id: string;
             userId: string;
@@ -110,32 +141,8 @@ export declare class ClaimsController {
             evidenceHashes: any;
             contractAddress: string;
             explorerUrl: string;
-        } | {
-            votingDetails: any;
-            id: string;
-            claimId: string;
-            userId: string;
-            policyId: string;
-            type: string;
-            status: string;
-            requestedAmount: string;
-            approvedAmount: any;
-            description: string;
-            documents: string[];
-            images: any[];
-            aiAnalysis: {
-                fraudScore: number;
-                authenticityScore: number;
-                recommendation: string;
-                reasoning: string;
-                confidence: number;
-            };
-            reviewNotes: any;
-            transactionHash: string;
-            createdAt: string;
-            updatedAt: string;
         };
-        source: string;
+        source: any;
     }>;
     create(claimData: any): Promise<{
         success: boolean;

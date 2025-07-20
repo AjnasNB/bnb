@@ -69,6 +69,29 @@ export default function GovernancePage() {
   const openClaimDetails = (claim: Claim) => {
     setSelectedClaim(claim);
     setShowClaimModal(true);
+    
+    // Use transaction hash to fetch detailed claim data from backend
+    if (claim.claimId) {
+      fetchClaimDetails(claim.claimId);
+    }
+  };
+
+  const fetchClaimDetails = async (claimId: string) => {
+    try {
+      console.log('Fetching claim details using transaction hash:', claimId);
+      
+      // Use the claimId as transaction hash to fetch from backend
+      const response = await fetch(`/api/v1/claims/${claimId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.claim) {
+          setSelectedClaim(data.claim);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching claim details:', error);
+      // Keep using the fallback claim data
+    }
   };
 
   // Function to close claim details modal
@@ -1010,9 +1033,9 @@ export default function GovernancePage() {
 
         {/* Claim Details Modal */}
         {showClaimModal && selectedClaim && (
-          <div className="modal-overlay" onClick={closeClaimModal}>
-            <div className="modal-content max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeClaimModal}>
+            <div className="bg-gradient-to-br from-purple-900 to-blue-900 border border-white/20 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6 p-6 border-b border-white/20">
                 <h2 className="text-2xl font-bold text-white">Claim Details #{selectedClaim.id}</h2>
                 <button
                   onClick={closeClaimModal}
@@ -1022,9 +1045,9 @@ export default function GovernancePage() {
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-6 p-6">
                 {/* Claim Information */}
-                <div className="bg-white/10 rounded-lg p-6">
+                <div className="bg-white/10 rounded-lg p-6 border border-white/20">
                   <h3 className="text-xl font-semibold text-white mb-4">Claim Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -1032,12 +1055,16 @@ export default function GovernancePage() {
                       <p className="text-white font-mono">{selectedClaim.claimId}</p>
                     </div>
                     <div>
-                      <label className="text-white/60 text-sm">Claimant</label>
-                      <p className="text-white font-mono">{formatAddress(selectedClaim.claimant)}</p>
-                    </div>
-                    <div>
                       <label className="text-white/60 text-sm">Policy ID</label>
                       <p className="text-white">{selectedClaim.policyTokenId}</p>
+                    </div>
+                    <div>
+                      <label className="text-white/60 text-sm">Requested Amount</label>
+                      <p className="text-white">${selectedClaim.amount}</p>
+                    </div>
+                    <div>
+                      <label className="text-white/60 text-sm">Claimant</label>
+                      <p className="text-white font-mono">{formatAddress(selectedClaim.claimant)}</p>
                     </div>
                     <div>
                       <label className="text-white/60 text-sm">Status</label>
@@ -1046,15 +1073,10 @@ export default function GovernancePage() {
                       </span>
                     </div>
                     <div>
-                      <label className="text-white/60 text-sm">Requested Amount</label>
-                      <p className="text-white">${selectedClaim.amount}</p>
-                    </div>
-                    <div>
                       <label className="text-white/60 text-sm">Submitted</label>
                       <p className="text-white">{formatDate(selectedClaim.submittedAt)}</p>
                     </div>
                   </div>
-                  
                   <div className="mt-4">
                     <label className="text-white/60 text-sm">Description</label>
                     <p className="text-white mt-1">{selectedClaim.description}</p>
@@ -1063,58 +1085,57 @@ export default function GovernancePage() {
 
                 {/* AI Analysis */}
                 {selectedClaim.aiAnalysis && (
-                  <div className="bg-white/10 rounded-lg p-6">
+                  <div className="bg-white/10 rounded-lg p-6 border border-white/20">
                     <h3 className="text-xl font-semibold text-white mb-4">AI Analysis</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
                       <div>
                         <label className="text-white/60 text-sm">Fraud Score</label>
-                        <div className="flex items-center gap-2">
-                          <div className="w-full bg-gray-700 rounded-full h-2">
-                            <div 
-                              className={`h-2 rounded-full ${getFraudScoreColor(selectedClaim.aiAnalysis.fraudScore)}`}
-                              style={{ width: `${selectedClaim.aiAnalysis.fraudScore}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-white text-sm">{selectedClaim.aiAnalysis.fraudScore}%</span>
+                        <div className="w-full bg-white/20 rounded-full h-2 mt-1">
+                          <div 
+                            className="h-2 rounded-full transition-all duration-500"
+                            style={{ 
+                              width: `${selectedClaim.aiAnalysis.fraudScore}%`,
+                              backgroundColor: getFraudScoreColor(selectedClaim.aiAnalysis.fraudScore)
+                            }}
+                          ></div>
                         </div>
+                        <p className="text-white text-sm mt-1">{selectedClaim.aiAnalysis.fraudScore}%</p>
                       </div>
                       <div>
                         <label className="text-white/60 text-sm">Authenticity Score</label>
-                        <div className="flex items-center gap-2">
-                          <div className="w-full bg-gray-700 rounded-full h-2">
-                            <div 
-                              className="h-2 rounded-full bg-green-500"
-                              style={{ width: `${selectedClaim.aiAnalysis.authenticityScore * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-white text-sm">{(selectedClaim.aiAnalysis.authenticityScore * 100).toFixed(0)}%</span>
+                        <div className="w-full bg-white/20 rounded-full h-2 mt-1">
+                          <div 
+                            className="h-2 rounded-full bg-green-400 transition-all duration-500"
+                            style={{ width: `${selectedClaim.aiAnalysis.authenticityScore * 100}%` }}
+                          ></div>
                         </div>
+                        <p className="text-white text-sm mt-1">{Math.round(selectedClaim.aiAnalysis.authenticityScore * 100)}%</p>
                       </div>
                       <div>
                         <label className="text-white/60 text-sm">Recommendation</label>
-                        <span className={`inline-block px-2 py-1 rounded text-xs ${
-                          selectedClaim.aiAnalysis.recommendation === 'approve' ? 'bg-green-500/20 text-green-400' :
-                          selectedClaim.aiAnalysis.recommendation === 'reject' ? 'bg-red-500/20 text-red-400' :
-                          'bg-yellow-500/20 text-yellow-400'
+                        <span className={`inline-block px-3 py-1 rounded text-sm font-semibold mt-1 ${
+                          selectedClaim.aiAnalysis.recommendation === 'approve' 
+                            ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                            : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
                         }`}>
                           {selectedClaim.aiAnalysis.recommendation.toUpperCase()}
                         </span>
                       </div>
                       <div>
                         <label className="text-white/60 text-sm">Confidence</label>
-                        <span className="text-white">{(selectedClaim.aiAnalysis.confidence * 100).toFixed(0)}%</span>
+                        <p className="text-white">{Math.round(selectedClaim.aiAnalysis.confidence * 100)}%</p>
                       </div>
-                    </div>
-                    <div className="mt-4">
-                      <label className="text-white/60 text-sm">Reasoning</label>
-                      <p className="text-white mt-1">{selectedClaim.aiAnalysis.reasoning}</p>
+                      <div>
+                        <label className="text-white/60 text-sm">Reasoning</label>
+                        <p className="text-white mt-1">{selectedClaim.aiAnalysis.reasoning}</p>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* Voting Details */}
+                {/* Voting Progress */}
                 {selectedClaim.votingDetails && (
-                  <div className="bg-white/10 rounded-lg p-6">
+                  <div className="bg-white/10 rounded-lg p-6 border border-white/20">
                     <h3 className="text-xl font-semibold text-white mb-4">Voting Progress</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                       <div className="text-center">
@@ -1132,17 +1153,14 @@ export default function GovernancePage() {
                     </div>
                     <div className="text-center">
                       <div className="text-lg font-semibold text-white">
-                        Approval Rate: {selectedClaim.votingDetails.approvalPercentage || 75}%
-                      </div>
-                      <div className="text-white/60 text-sm">
-                        Voting ends: {formatDate(selectedClaim.votingDetails.votingEnds)}
+                        Approval Rate: {Math.round((parseInt(selectedClaim.votingDetails.votesFor) / parseInt(selectedClaim.votingDetails.totalVotes)) * 100)}%
                       </div>
                     </div>
                   </div>
                 )}
 
                 {/* Voting Form */}
-                <div className="bg-white/10 rounded-lg p-6">
+                <div className="bg-white/10 rounded-lg p-6 border border-white/20">
                   <h3 className="text-xl font-semibold text-white mb-4">Cast Your Vote</h3>
                   <div className="space-y-4">
                     <div>
@@ -1186,7 +1204,7 @@ export default function GovernancePage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
+              <div className="flex gap-3 p-6 border-t border-white/20">
                 <button
                   onClick={closeClaimModal}
                   className="btn-secondary flex-1"
@@ -1194,8 +1212,8 @@ export default function GovernancePage() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => voteOnClaim(selectedClaim.id)}
-                  disabled={voteLoading || !voteReason.trim()}
+                  onClick={() => submitVote(selectedClaim.claimId)}
+                  disabled={voteLoading || !voteReason.trim() || !voteChoice}
                   className="btn-primary flex-1"
                 >
                   {voteLoading ? 'Submitting Vote...' : 'Submit Vote'}

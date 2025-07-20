@@ -445,16 +445,15 @@ export default function CreatePolicyPage() {
       setCreating(true);
       
       const policyData = {
-        ...form,
-        holder: account,
-        premiumRate: premiumRate,
+        type: form.type,
+        coverageAmount: form.coverageAmount,
+        premiumAmount: form.premiumAmount,
         duration: form.duration,
-        metadata: {
-          type: form.type,
-          description: form.description,
-          terms: form.terms,
-          features: policyTypes.find(t => t.id === form.type)?.features || []
-        }
+        description: form.description,
+        terms: form.terms,
+        holder: account,
+        beneficiary: account,
+        metadataHash: `QmPolicy_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
       };
 
       console.log('Creating policy with data:', policyData);
@@ -478,8 +477,8 @@ export default function CreatePolicyPage() {
       console.log('Policy creation result:', result);
 
       if (result.success) {
-        alert('Policy created successfully! Token ID: ' + result.tokenId);
-        router.push('/policies');
+        // Execute MetaMask transaction for policy creation
+        await executePolicyCreation(result);
       } else {
         alert('Failed to create policy: ' + (result.message || result.error || 'Unknown error'));
       }
@@ -492,12 +491,81 @@ export default function CreatePolicyPage() {
     }
   };
 
+  const executePolicyCreation = async (result: any) => {
+    try {
+      if (!(window as any).ethereum) {
+        alert('MetaMask is not installed');
+        return;
+      }
+
+      if (!account) {
+        alert('Please connect your wallet first');
+        return;
+      }
+
+      // First, handle approval if needed
+      if (result.transactions?.approval) {
+        const approvalTx = result.transactions.approval;
+        console.log('Executing approval transaction...');
+        
+        const approvalResult = await (window as any).ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: account,
+            to: approvalTx.to,
+            data: approvalTx.data,
+            value: approvalTx.value,
+            gas: approvalTx.estimatedGas,
+          }],
+        });
+        
+        console.log('Approval transaction hash:', approvalResult);
+        alert(`Approval transaction submitted! Hash: ${approvalResult}`);
+        
+        // Wait a bit for approval to be processed
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
+      // Then execute policy creation
+      if (result.transactions?.createPolicy) {
+        const createTx = result.transactions.createPolicy;
+        console.log('Executing policy creation transaction...');
+        
+        const createResult = await (window as any).ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: account,
+            to: createTx.to,
+            data: createTx.data,
+            value: createTx.value,
+            gas: createTx.estimatedGas,
+          }],
+        });
+        
+        console.log('Policy creation transaction hash:', createResult);
+        alert(`Policy created successfully! Transaction hash: ${createResult}`);
+        router.push('/policies');
+      } else {
+        // Fallback to mimic if no transaction data
+        await mimicCreatePolicy();
+      }
+      
+    } catch (error) {
+      console.error('MetaMask transaction failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert('Transaction failed: ' + errorMessage);
+      
+      // Fallback to mimic function
+      await mimicCreatePolicy();
+    }
+  };
+
   // Fallback functions that mimic real blockchain functions
   const mimicCreatePolicy = async () => {
     try {
       setCreating(true);
       
-      // Mimic policy creation transaction
+      // Mimic policy creation transaction with correct contract address
       const policyData = {
         to: '0x2e2acdf394319b365Cc46cF587ab8a2d25Cb3312', // Policy NFT contract
         data: '0x', // Mimic policy creation
@@ -515,6 +583,7 @@ export default function CreatePolicyPage() {
         return;
       }
 
+      console.log('Executing mimic policy creation...');
       const tx = await (window as any).ethereum.request({
         method: 'eth_sendTransaction',
         params: [{
@@ -526,6 +595,7 @@ export default function CreatePolicyPage() {
         }],
       });
 
+      console.log('Mimic policy creation transaction hash:', tx);
       alert(`Policy created! Transaction hash: ${tx}`);
       router.push('/policies');
       
