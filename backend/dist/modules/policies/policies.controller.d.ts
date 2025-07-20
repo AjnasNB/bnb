@@ -2,33 +2,58 @@ import { PoliciesService } from './policies.service';
 export declare class PoliciesController {
     private readonly policiesService;
     constructor(policiesService: PoliciesService);
-    findAll(page?: number, limit?: number): Promise<{
-        policies: {
+    getTypes(): Promise<{
+        types: {
             id: string;
-            userId: string;
-            type: string;
-            status: string;
-            coverageAmount: string;
-            premiumAmount: string;
-            startDate: string;
-            endDate: string;
-            nftTokenId: string;
-            createdAt: string;
+            name: string;
+            basePremium: number;
+            description: string;
+            minCoverage: number;
+            maxCoverage: number;
+            premiumRate: number;
+            duration: number;
         }[];
+    }>;
+    getAvailableTypes(): Promise<{
+        types: {
+            id: string;
+            name: string;
+            basePremium: number;
+            description: string;
+            minCoverage: number;
+            maxCoverage: number;
+            premiumRate: number;
+            duration: number;
+        }[];
+        error?: undefined;
+    } | {
+        types: any[];
+        error: any;
+    }>;
+    findAll(page?: number, limit?: number): Promise<{
+        policies: import("./entities/policy.entity").Policy[];
         total: number;
         page: number;
         limit: number;
         totalPages: number;
+        error?: undefined;
+    } | {
+        policies: any[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+        error: any;
     }>;
-    findOne(id: string): Promise<{
+    findOne(id: string): Promise<import("./entities/policy.entity").Policy | {
         id: string;
         userId: string;
         type: string;
         status: string;
         coverageAmount: string;
         premiumAmount: string;
-        startDate: string;
-        endDate: string;
+        startDate: Date;
+        endDate: Date;
         nftTokenId: string;
         terms: {
             deductible: string;
@@ -41,7 +66,33 @@ export declare class PoliciesController {
     }>;
     create(policyData: any): Promise<{
         success: boolean;
-        policy: any;
+        policy: import("./entities/policy.entity").Policy;
+        blockchainResult: {
+            success: boolean;
+            message: string;
+            policyData: any;
+            transactions: {
+                approval: any;
+                createPolicy: {
+                    to: string;
+                    data: string;
+                    estimatedGas: string;
+                    value: string;
+                    note: string;
+                };
+            };
+            contractAddress: string;
+            note: string;
+            error?: undefined;
+        } | {
+            success: boolean;
+            message: string;
+            error: any;
+            policyData: any;
+            note: string;
+            transactions?: undefined;
+            contractAddress?: undefined;
+        };
         message: string;
     }>;
     update(id: string, policyData: any): Promise<{
@@ -53,14 +104,6 @@ export declare class PoliciesController {
         success: boolean;
         id: string;
         message: string;
-    }>;
-    getAvailableTypes(): Promise<{
-        types: {
-            id: string;
-            name: string;
-            basePremium: number;
-            description: string;
-        }[];
     }>;
     getQuote(quoteData: any): Promise<{
         quote: {

@@ -12,6 +12,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const policies_controller_1 = require("./policies.controller");
 const policies_service_1 = require("./policies.service");
 const policy_entity_1 = require("./entities/policy.entity");
+const blockchain_module_1 = require("../blockchain/blockchain.module");
 let PoliciesModule = class PoliciesModule {
 };
 exports.PoliciesModule = PoliciesModule;
@@ -19,6 +20,7 @@ exports.PoliciesModule = PoliciesModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([policy_entity_1.Policy]),
+            blockchain_module_1.BlockchainModule,
         ],
         controllers: [policies_controller_1.PoliciesController],
         providers: [policies_service_1.PoliciesService],

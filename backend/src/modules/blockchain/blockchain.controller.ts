@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { BlockchainService } from './blockchain.service';
 import { ContractService } from './contract.service';
@@ -11,13 +11,13 @@ export class BlockchainController {
     private readonly contractService: ContractService,
   ) {}
 
-  @Get('network-info')
+  @Get('network')
   @ApiOperation({ summary: 'Get network information' })
   async getNetworkInfo() {
     return this.blockchainService.getNetworkInfo();
   }
 
-  @Get('contract-addresses')
+  @Get('contracts')
   @ApiOperation({ summary: 'Get deployed contract addresses' })
   async getContractAddresses() {
     return this.contractService.getContractAddresses();
@@ -29,25 +29,37 @@ export class BlockchainController {
     return this.blockchainService.getBalance(address);
   }
 
-  @Get('token-balances/:address')
+  @Get('tokens/:address')
   @ApiOperation({ summary: 'Get token balances for address' })
   async getTokenBalances(@Param('address') address: string) {
     return this.contractService.getTokenBalances(address);
   }
 
-  @Post('create-policy')
+  @Get('policies/:address')
+  @ApiOperation({ summary: 'Get user policies from blockchain' })
+  async getUserPolicies(@Param('address') address: string) {
+    return this.contractService.getUserPolicies(address);
+  }
+
+  @Get('liquidity')
+  @ApiOperation({ summary: 'Get liquidity information' })
+  async getLiquidityInfo() {
+    return this.contractService.getLiquidityInfo();
+  }
+
+  @Post('policy/create')
   @ApiOperation({ summary: 'Create new policy on blockchain' })
   async createPolicy(@Body() policyData: any) {
     return this.contractService.createPolicy(policyData);
   }
 
-  @Post('submit-claim')
+  @Post('claim/submit')
   @ApiOperation({ summary: 'Submit claim to blockchain' })
   async submitClaim(@Body() claimData: any) {
     return this.contractService.submitClaim(claimData);
   }
 
-  @Post('stake-tokens')
+  @Post('stake')
   @ApiOperation({ summary: 'Stake governance tokens' })
   async stakeTokens(@Body() stakeData: { amount: string; userAddress: string }) {
     return this.contractService.stakeTokens(stakeData.amount, stakeData.userAddress);
@@ -92,6 +104,6 @@ export class BlockchainController {
   @Get('health')
   @ApiOperation({ summary: 'Check blockchain service health' })
   async healthCheck() {
-    return this.blockchainService.healthCheck();
+    return this.contractService.healthCheck();
   }
 } 

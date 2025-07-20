@@ -9,8 +9,28 @@ export class UsersController {
 
   @Get()
   @ApiOperation({ summary: 'Get all users' })
-  async findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 10) {
-    return this.usersService.findAll({ page, limit });
+  async findAll(@Query('page') page: string = '1', @Query('limit') limit: string = '10') {
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    return this.usersService.findAll({ page: pageNum, limit: limitNum });
+  }
+
+  @Get('wallet/:walletAddress')
+  @ApiOperation({ summary: 'Get user by wallet address' })
+  async findByWalletAddress(@Param('walletAddress') walletAddress: string) {
+    const user = await this.usersService.findByWalletAddress(walletAddress);
+    if (!user) {
+      return {
+        users: [],
+        total: 0,
+        isNewUser: true,
+      };
+    }
+    return {
+      users: [user],
+      total: 1,
+      isNewUser: false,
+    };
   }
 
   @Get(':id')

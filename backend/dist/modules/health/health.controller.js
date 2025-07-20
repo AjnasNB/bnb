@@ -24,11 +24,11 @@ let HealthController = class HealthController {
         this.configService = configService;
     }
     check() {
-        const aiServiceUrl = this.configService.get('ai.endpoint');
+        const aiServiceUrl = this.configService.get('aiService.url');
         return this.health.check([
             () => this.db.pingCheck('database'),
             () => this.memory.checkHeap('memory_heap', 300 * 1024 * 1024),
-            () => this.disk.checkStorage('storage', { path: '/', threshold: 250 * 1024 * 1024 }),
+            ...(process.platform !== 'win32' ? [() => this.disk.checkStorage('storage', { path: '/', threshold: 250 * 1024 * 1024 })] : []),
             ...(aiServiceUrl ? [() => this.http.pingCheck('ai-service', `${aiServiceUrl}/health`)] : []),
         ]);
     }
@@ -37,7 +37,7 @@ let HealthController = class HealthController {
             status: 'ok',
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
-            environment: this.configService.get('app.environment'),
+            environment: this.configService.get('app.environment') || 'development',
             version: '1.0.0',
         };
     }

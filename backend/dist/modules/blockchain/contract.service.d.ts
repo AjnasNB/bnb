@@ -6,47 +6,72 @@ export declare class ContractService {
     constructor(blockchainService: BlockchainService);
     private initializeContracts;
     getContractAddresses(): {
+        stablecoin: string;
+        governanceToken: string;
+        policyNFT: string;
+        claimsEngine: string;
+        governance: string;
+        surplusDistributor: string;
         network: string;
         chainId: number;
-        addresses: {
-            stablecoin: string;
-            governanceToken: string;
-            policyNFT: string;
-            claimsEngine: string;
-            surplusDistributor: string;
-            governance: string;
-        };
-        explorerUrls: {
-            stablecoin: string;
-            governanceToken: string;
-            policyNFT: string;
-            claimsEngine: string;
-            surplusDistributor: string;
-            governance: string;
-        };
+        rpcUrl: string;
     };
     getTokenBalances(address: string): Promise<{
         address: string;
-        balances: {
+        tokens: {
             stablecoin: any;
             governanceToken: any;
-            policyNFT: any;
         };
+        nftPolicies: {
+            success: boolean;
+            policies: any[];
+            totalPolicies: number;
+            note: string;
+        } | {
+            success: boolean;
+            policies: any[];
+            totalPolicies: number;
+            note?: undefined;
+        };
+        timestamp: string;
     }>;
     private getTokenInfo;
     createPolicy(policyData: any): Promise<{
         success: boolean;
         message: string;
         policyData: any;
-        estimatedGas: string;
+        transactions: {
+            approval: any;
+            createPolicy: {
+                to: string;
+                data: string;
+                estimatedGas: string;
+                value: string;
+                note: string;
+            };
+        };
         contractAddress: string;
         note: string;
+        error?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        error: any;
+        policyData: any;
+        note: string;
+        transactions?: undefined;
+        contractAddress?: undefined;
     }>;
     submitClaim(claimData: any): Promise<{
         success: boolean;
         message: string;
         claimData: any;
-        estimatedGas: string;
+        transaction: {
+            to: string;
+            data: string;
+            estimatedGas: string;
+            value: string;
+        };
         contractAddress: string;
         note: string;
     }>;
@@ -55,23 +80,35 @@ export declare class ContractService {
         message: string;
         amount: string;
         userAddress: string;
-        estimatedGas: string;
+        transaction: {
+            to: string;
+            data: string;
+            estimatedGas: string;
+            value: string;
+        };
         contractAddress: string;
         note: string;
     }>;
     getPolicyDetails(tokenId: string): Promise<{
         tokenId: string;
         owner: any;
+        exists: boolean;
         contractAddress: string;
         explorerUrl: string;
         details: {
-            active: boolean;
+            policyType: string;
+            status: string;
+            policyholder: any;
+            beneficiary: any;
             coverageAmount: string;
-            premiumPaid: string;
+            premium: string;
+            creationDate: string;
             expiryDate: string;
+            claimedAmount: string;
+            coverageTerms: any;
+            ipfsHash: any;
         };
         error?: undefined;
-        exists?: undefined;
     } | {
         tokenId: string;
         error: any;
@@ -81,38 +118,75 @@ export declare class ContractService {
         explorerUrl?: undefined;
         details?: undefined;
     }>;
+    getUserPolicies(userAddress: string): Promise<{
+        success: boolean;
+        policies: any[];
+        totalPolicies: number;
+        note: string;
+    } | {
+        success: boolean;
+        policies: any[];
+        totalPolicies: number;
+        note?: undefined;
+    }>;
     getClaimDetails(claimId: string): Promise<{
         claimId: string;
+        policyId: any;
+        claimant: any;
+        requestedAmount: string;
+        approvedAmount: string;
+        description: any;
         status: string;
+        submittedAt: string;
+        fraudScore: number;
+        claimType: string;
+        evidenceHashes: any;
         contractAddress: string;
         explorerUrl: string;
-        details: {
-            submittedAt: string;
-            amount: string;
-            claimType: string;
-            evidenceHashes: any[];
-        };
     }>;
+    private getClaimStatus;
     getGovernanceProposals(): Promise<{
-        proposals: {
-            id: string;
-            title: string;
-            description: string;
-            status: string;
-            votesFor: string;
-            votesAgainst: string;
-            endTime: string;
-        }[];
+        proposals: any[];
         contractAddress: string;
         totalProposals: number;
+    }>;
+    createGovernanceProposal(proposalData: any): Promise<{
+        success: boolean;
+        message: string;
+        proposalData: any;
+        transaction: {
+            to: string;
+            data: string;
+            estimatedGas: string;
+            value: string;
+        };
+        contractAddress: string;
+        note: string;
     }>;
     voteOnProposal(voteData: any): Promise<{
         success: boolean;
         message: string;
         voteData: any;
-        estimatedGas: string;
+        transaction: {
+            to: string;
+            data: string;
+            estimatedGas: string;
+            value: string;
+        };
         contractAddress: string;
         note: string;
+    }>;
+    getLiquidityInfo(): Promise<{
+        stablecoin: {
+            totalSupply: string;
+            symbol: any;
+        };
+        governanceToken: {
+            totalSupply: string;
+            symbol: any;
+        };
+        network: string;
+        timestamp: string;
     }>;
     healthCheck(): Promise<{
         status: string;
@@ -143,4 +217,44 @@ export declare class ContractService {
         contracts?: undefined;
         network?: undefined;
     }>;
+    getAllClaims(): Promise<any[]>;
+    voteOnClaim(voteData: any): Promise<{
+        success: boolean;
+        message: string;
+        voteData: any;
+        transaction: {
+            to: string;
+            data: string;
+            estimatedGas: string;
+            value: string;
+        };
+        contractAddress: string;
+        note: string;
+    }>;
+    getJuryVotingDetails(claimId: string): Promise<{
+        jurors: any;
+        votesFor: string;
+        votesAgainst: string;
+        totalVotes: number;
+        averageAmount: string;
+        concluded: any;
+        approvalPercentage: number;
+    }>;
+    executeClaimDecision(claimId: string, isApproved: boolean): Promise<{
+        success: boolean;
+        message: string;
+        claimId: string;
+        isApproved: boolean;
+        transaction: {
+            to: string;
+            data: string;
+            estimatedGas: string;
+            value: string;
+        };
+        contractAddress: string;
+        note: string;
+    }>;
+    private getClaimType;
+    private getPolicyTypeName;
+    private getPolicyStatusName;
 }

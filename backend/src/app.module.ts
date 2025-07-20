@@ -16,6 +16,7 @@ import { BlockchainModule } from './modules/blockchain/blockchain.module';
 import { AIModule } from './modules/ai/ai.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { GovernanceModule } from './modules/governance/governance.module';
 
 // Import entities
 import { User } from './modules/users/entities/user.entity';
@@ -23,6 +24,8 @@ import { Policy } from './modules/policies/entities/policy.entity';
 import { Claim } from './modules/claims/entities/claim.entity';
 import { BlockchainTransaction } from './modules/blockchain/entities/blockchain-transaction.entity';
 import { Notification } from './modules/notifications/entities/notification.entity';
+import { Proposal } from './modules/governance/entities/proposal.entity';
+import { Vote } from './modules/governance/entities/vote.entity';
 
 @Module({
   imports: [
@@ -36,7 +39,7 @@ import { Notification } from './modules/notifications/entities/notification.enti
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: AppConfig.database.path,
-      entities: [User, Policy, Claim, BlockchainTransaction, Notification],
+      entities: [User, Policy, Claim, BlockchainTransaction, Notification, Proposal, Vote],
       synchronize: AppConfig.database.synchronize,
       autoLoadEntities: AppConfig.database.autoLoadEntities,
       logging: AppConfig.database.logging,
@@ -65,6 +68,7 @@ import { Notification } from './modules/notifications/entities/notification.enti
     AIModule,
     NotificationsModule,
     AnalyticsModule,
+    GovernanceModule,
   ],
   controllers: [],
   providers: [],

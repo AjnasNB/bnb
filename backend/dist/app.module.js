@@ -21,11 +21,14 @@ const blockchain_module_1 = require("./modules/blockchain/blockchain.module");
 const ai_module_1 = require("./modules/ai/ai.module");
 const notifications_module_1 = require("./modules/notifications/notifications.module");
 const analytics_module_1 = require("./modules/analytics/analytics.module");
+const governance_module_1 = require("./modules/governance/governance.module");
 const user_entity_1 = require("./modules/users/entities/user.entity");
 const policy_entity_1 = require("./modules/policies/entities/policy.entity");
 const claim_entity_1 = require("./modules/claims/entities/claim.entity");
 const blockchain_transaction_entity_1 = require("./modules/blockchain/entities/blockchain-transaction.entity");
 const notification_entity_1 = require("./modules/notifications/entities/notification.entity");
+const proposal_entity_1 = require("./modules/governance/entities/proposal.entity");
+const vote_entity_1 = require("./modules/governance/entities/vote.entity");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -39,7 +42,7 @@ exports.AppModule = AppModule = __decorate([
             typeorm_1.TypeOrmModule.forRoot({
                 type: 'sqlite',
                 database: app_config_1.AppConfig.database.path,
-                entities: [user_entity_1.User, policy_entity_1.Policy, claim_entity_1.Claim, blockchain_transaction_entity_1.BlockchainTransaction, notification_entity_1.Notification],
+                entities: [user_entity_1.User, policy_entity_1.Policy, claim_entity_1.Claim, blockchain_transaction_entity_1.BlockchainTransaction, notification_entity_1.Notification, proposal_entity_1.Proposal, vote_entity_1.Vote],
                 synchronize: app_config_1.AppConfig.database.synchronize,
                 autoLoadEntities: app_config_1.AppConfig.database.autoLoadEntities,
                 logging: app_config_1.AppConfig.database.logging,
@@ -62,6 +65,7 @@ exports.AppModule = AppModule = __decorate([
             ai_module_1.AIModule,
             notifications_module_1.NotificationsModule,
             analytics_module_1.AnalyticsModule,
+            governance_module_1.GovernanceModule,
         ],
         controllers: [],
         providers: [],

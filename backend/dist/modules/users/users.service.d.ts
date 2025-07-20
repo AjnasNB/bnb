@@ -1,53 +1,35 @@
+import { Repository } from 'typeorm';
+import { User } from './entities/user.entity';
 export declare class UsersService {
+    private readonly userRepository;
     private readonly logger;
+    constructor(userRepository: Repository<User>);
     findAll(pagination: {
         page: number;
         limit: number;
     }): Promise<{
-        users: {
-            id: string;
-            email: string;
-            firstName: string;
-            lastName: string;
-            walletAddress: string;
-            isActive: boolean;
-            isVerified: boolean;
-            createdAt: string;
-        }[];
+        users: User[];
         total: number;
         page: number;
         limit: number;
         totalPages: number;
     }>;
-    findOne(id: string): Promise<{
-        id: string;
-        email: string;
-        firstName: string;
-        lastName: string;
-        walletAddress: string;
-        isActive: boolean;
-        isVerified: boolean;
-        avatar: any;
-        phone: any;
-        preferences: {
-            notifications: {
-                email: boolean;
-                push: boolean;
-            };
-            currency: string;
-            language: string;
-        };
-        createdAt: string;
-    }>;
+    findOne(id: string): Promise<User>;
+    findByWalletAddress(walletAddress: string): Promise<User>;
     create(userData: any): Promise<{
         success: boolean;
-        user: any;
+        user: User;
         message: string;
+        isNewUser: boolean;
+    } | {
+        success: boolean;
+        user: User[];
+        message: string;
+        isNewUser: boolean;
     }>;
     update(id: string, userData: any): Promise<{
         success: boolean;
-        id: string;
-        updatedData: any;
+        user: any;
         message: string;
     }>;
     remove(id: string): Promise<{
@@ -57,30 +39,12 @@ export declare class UsersService {
     }>;
     getUserPolicies(userId: string): Promise<{
         userId: string;
-        policies: {
-            id: string;
-            type: string;
-            status: string;
-            coverageAmount: string;
-            premiumAmount: string;
-            startDate: string;
-            endDate: string;
-            nftTokenId: string;
-        }[];
+        policies: any[];
         total: number;
     }>;
     getUserClaims(userId: string): Promise<{
         userId: string;
-        claims: {
-            id: string;
-            policyId: string;
-            type: string;
-            status: string;
-            requestedAmount: string;
-            approvedAmount: string;
-            description: string;
-            createdAt: string;
-        }[];
+        claims: any[];
         total: number;
     }>;
 }

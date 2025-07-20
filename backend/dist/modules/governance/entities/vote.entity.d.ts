@@ -1,3 +1,4 @@
+import { Proposal } from './proposal.entity';
 export declare enum VoteChoice {
     FOR = "for",
     AGAINST = "against",
@@ -13,4 +14,5 @@ export declare class Vote {
     reasoning: string;
     votingPower: string;
     createdAt: Date;
+    proposal: Proposal;
 }

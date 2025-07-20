@@ -20,6 +20,75 @@ let PoliciesController = class PoliciesController {
     constructor(policiesService) {
         this.policiesService = policiesService;
     }
+    async getTypes() {
+        return {
+            types: [
+                {
+                    id: 'health',
+                    name: 'Health Insurance',
+                    basePremium: 150,
+                    description: 'Comprehensive health coverage for medical expenses',
+                    minCoverage: 1000,
+                    maxCoverage: 100000,
+                    premiumRate: 0.03,
+                    duration: 365
+                },
+                {
+                    id: 'vehicle',
+                    name: 'Vehicle Insurance',
+                    basePremium: 200,
+                    description: 'Auto insurance coverage for accidents and damage',
+                    minCoverage: 5000,
+                    maxCoverage: 500000,
+                    premiumRate: 0.025,
+                    duration: 365
+                },
+                {
+                    id: 'travel',
+                    name: 'Travel Insurance',
+                    basePremium: 50,
+                    description: 'Travel protection for trips and vacations',
+                    minCoverage: 500,
+                    maxCoverage: 50000,
+                    premiumRate: 0.04,
+                    duration: 30
+                },
+                {
+                    id: 'pet',
+                    name: 'Pet Insurance',
+                    basePremium: 75,
+                    description: 'Pet health coverage for veterinary expenses',
+                    minCoverage: 1000,
+                    maxCoverage: 25000,
+                    premiumRate: 0.035,
+                    duration: 365
+                },
+                {
+                    id: 'home',
+                    name: 'Home Insurance',
+                    basePremium: 300,
+                    description: 'Home and property protection',
+                    minCoverage: 10000,
+                    maxCoverage: 1000000,
+                    premiumRate: 0.02,
+                    duration: 365
+                },
+                {
+                    id: 'life',
+                    name: 'Life Insurance',
+                    basePremium: 100,
+                    description: 'Life insurance coverage',
+                    minCoverage: 10000,
+                    maxCoverage: 1000000,
+                    premiumRate: 0.015,
+                    duration: 365
+                },
+            ],
+        };
+    }
+    async getAvailableTypes() {
+        return this.policiesService.getAvailableTypes();
+    }
     async findAll(page = 1, limit = 10) {
         return this.policiesService.findAll({ page, limit });
     }
@@ -35,14 +104,25 @@ let PoliciesController = class PoliciesController {
     async remove(id) {
         return this.policiesService.remove(id);
     }
-    async getAvailableTypes() {
-        return this.policiesService.getAvailableTypes();
-    }
     async getQuote(quoteData) {
         return this.policiesService.getQuote(quoteData);
     }
 };
 exports.PoliciesController = PoliciesController;
+__decorate([
+    (0, common_1.Get)('types'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get available policy types' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], PoliciesController.prototype, "getTypes", null);
+__decorate([
+    (0, common_1.Get)('types/available'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get available policy types' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], PoliciesController.prototype, "getAvailableTypes", null);
 __decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiOperation)({ summary: 'Get all policies' }),
@@ -85,13 +165,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], PoliciesController.prototype, "remove", null);
-__decorate([
-    (0, common_1.Get)('types/available'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get available policy types' }),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], PoliciesController.prototype, "getAvailableTypes", null);
 __decorate([
     (0, common_1.Post)('quote'),
     (0, swagger_1.ApiOperation)({ summary: 'Get policy quote' }),

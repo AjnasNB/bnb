@@ -15,24 +15,15 @@ export declare class BlockchainController {
         status: string;
     }>;
     getContractAddresses(): Promise<{
+        stablecoin: string;
+        governanceToken: string;
+        policyNFT: string;
+        claimsEngine: string;
+        governance: string;
+        surplusDistributor: string;
         network: string;
         chainId: number;
-        addresses: {
-            stablecoin: string;
-            governanceToken: string;
-            policyNFT: string;
-            claimsEngine: string;
-            surplusDistributor: string;
-            governance: string;
-        };
-        explorerUrls: {
-            stablecoin: string;
-            governanceToken: string;
-            policyNFT: string;
-            claimsEngine: string;
-            surplusDistributor: string;
-            governance: string;
-        };
+        rpcUrl: string;
     }>;
     getBalance(address: string): Promise<{
         address: string;
@@ -42,25 +33,82 @@ export declare class BlockchainController {
     }>;
     getTokenBalances(address: string): Promise<{
         address: string;
-        balances: {
+        tokens: {
             stablecoin: any;
             governanceToken: any;
-            policyNFT: any;
         };
+        nftPolicies: {
+            success: boolean;
+            policies: any[];
+            totalPolicies: number;
+            note: string;
+        } | {
+            success: boolean;
+            policies: any[];
+            totalPolicies: number;
+            note?: undefined;
+        };
+        timestamp: string;
+    }>;
+    getUserPolicies(address: string): Promise<{
+        success: boolean;
+        policies: any[];
+        totalPolicies: number;
+        note: string;
+    } | {
+        success: boolean;
+        policies: any[];
+        totalPolicies: number;
+        note?: undefined;
+    }>;
+    getLiquidityInfo(): Promise<{
+        stablecoin: {
+            totalSupply: string;
+            symbol: any;
+        };
+        governanceToken: {
+            totalSupply: string;
+            symbol: any;
+        };
+        network: string;
+        timestamp: string;
     }>;
     createPolicy(policyData: any): Promise<{
         success: boolean;
         message: string;
         policyData: any;
-        estimatedGas: string;
+        transactions: {
+            approval: any;
+            createPolicy: {
+                to: string;
+                data: string;
+                estimatedGas: string;
+                value: string;
+                note: string;
+            };
+        };
         contractAddress: string;
         note: string;
+        error?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        error: any;
+        policyData: any;
+        note: string;
+        transactions?: undefined;
+        contractAddress?: undefined;
     }>;
     submitClaim(claimData: any): Promise<{
         success: boolean;
         message: string;
         claimData: any;
-        estimatedGas: string;
+        transaction: {
+            to: string;
+            data: string;
+            estimatedGas: string;
+            value: string;
+        };
         contractAddress: string;
         note: string;
     }>;
@@ -72,23 +120,35 @@ export declare class BlockchainController {
         message: string;
         amount: string;
         userAddress: string;
-        estimatedGas: string;
+        transaction: {
+            to: string;
+            data: string;
+            estimatedGas: string;
+            value: string;
+        };
         contractAddress: string;
         note: string;
     }>;
     getPolicyDetails(tokenId: string): Promise<{
         tokenId: string;
         owner: any;
+        exists: boolean;
         contractAddress: string;
         explorerUrl: string;
         details: {
-            active: boolean;
+            policyType: string;
+            status: string;
+            policyholder: any;
+            beneficiary: any;
             coverageAmount: string;
-            premiumPaid: string;
+            premium: string;
+            creationDate: string;
             expiryDate: string;
+            claimedAmount: string;
+            coverageTerms: any;
+            ipfsHash: any;
         };
         error?: undefined;
-        exists?: undefined;
     } | {
         tokenId: string;
         error: any;
@@ -100,15 +160,18 @@ export declare class BlockchainController {
     }>;
     getClaimDetails(claimId: string): Promise<{
         claimId: string;
+        policyId: any;
+        claimant: any;
+        requestedAmount: string;
+        approvedAmount: string;
+        description: any;
         status: string;
+        submittedAt: string;
+        fraudScore: number;
+        claimType: string;
+        evidenceHashes: any;
         contractAddress: string;
         explorerUrl: string;
-        details: {
-            submittedAt: string;
-            amount: string;
-            claimType: string;
-            evidenceHashes: any[];
-        };
     }>;
     getTransactionHistory(address: string): Promise<{
         address: string;
@@ -163,15 +226,7 @@ export declare class BlockchainController {
         confirmations?: undefined;
     }>;
     getProposals(): Promise<{
-        proposals: {
-            id: string;
-            title: string;
-            description: string;
-            status: string;
-            votesFor: string;
-            votesAgainst: string;
-            endTime: string;
-        }[];
+        proposals: any[];
         contractAddress: string;
         totalProposals: number;
     }>;
@@ -179,34 +234,42 @@ export declare class BlockchainController {
         success: boolean;
         message: string;
         voteData: any;
-        estimatedGas: string;
+        transaction: {
+            to: string;
+            data: string;
+            estimatedGas: string;
+            value: string;
+        };
         contractAddress: string;
         note: string;
     }>;
     healthCheck(): Promise<{
         status: string;
-        network: {
-            name: string;
-            chainId: number;
-            blockNumber: number;
-        };
-        rpcUrl: string;
         contracts: {
-            stablecoin: string;
-            governanceToken: string;
-            policyNFT: string;
-            claimsEngine: string;
-            surplusDistributor: string;
-            governance: string;
+            stablecoin: {
+                address: string;
+                name: any;
+                connected: boolean;
+            };
+            governanceToken: {
+                address: string;
+                name: any;
+                connected: boolean;
+            };
+            policyNFT: {
+                address: string;
+                name: any;
+                connected: boolean;
+            };
         };
+        network: string;
         timestamp: string;
         error?: undefined;
     } | {
         status: string;
         error: any;
         timestamp: string;
-        network?: undefined;
-        rpcUrl?: undefined;
         contracts?: undefined;
+        network?: undefined;
     }>;
 }

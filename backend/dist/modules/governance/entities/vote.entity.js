@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Vote = exports.VoteChoice = void 0;
 const typeorm_1 = require("typeorm");
+const proposal_entity_1 = require("./proposal.entity");
 var VoteChoice;
 (function (VoteChoice) {
     VoteChoice["FOR"] = "for";
@@ -25,15 +26,15 @@ __decorate([
     __metadata("design:type", String)
 ], Vote.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ name: 'user_id' }),
     __metadata("design:type", String)
 ], Vote.prototype, "userId", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ name: 'proposal_id' }),
     __metadata("design:type", String)
 ], Vote.prototype, "proposalId", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ name: 'claim_id', nullable: true }),
     __metadata("design:type", String)
 ], Vote.prototype, "claimId", void 0);
 __decorate([
@@ -44,7 +45,7 @@ __decorate([
     __metadata("design:type", String)
 ], Vote.prototype, "choice", void 0);
 __decorate([
-    (0, typeorm_1.Column)('decimal', { precision: 20, scale: 8, nullable: true }),
+    (0, typeorm_1.Column)({ name: 'suggested_amount', type: 'decimal', precision: 20, scale: 8, nullable: true }),
     __metadata("design:type", String)
 ], Vote.prototype, "suggestedAmount", void 0);
 __decorate([
@@ -52,13 +53,18 @@ __decorate([
     __metadata("design:type", String)
 ], Vote.prototype, "reasoning", void 0);
 __decorate([
-    (0, typeorm_1.Column)('decimal', { precision: 20, scale: 8 }),
+    (0, typeorm_1.Column)({ name: 'voting_power', type: 'decimal', precision: 20, scale: 8 }),
     __metadata("design:type", String)
 ], Vote.prototype, "votingPower", void 0);
 __decorate([
-    (0, typeorm_1.CreateDateColumn)(),
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
     __metadata("design:type", Date)
 ], Vote.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => proposal_entity_1.Proposal, proposal => proposal.votes),
+    (0, typeorm_1.JoinColumn)({ name: 'proposal_id' }),
+    __metadata("design:type", proposal_entity_1.Proposal)
+], Vote.prototype, "proposal", void 0);
 exports.Vote = Vote = __decorate([
     (0, typeorm_1.Entity)('votes')
 ], Vote);

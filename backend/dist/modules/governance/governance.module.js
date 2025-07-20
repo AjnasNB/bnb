@@ -13,6 +13,7 @@ const governance_controller_1 = require("./governance.controller");
 const governance_service_1 = require("./governance.service");
 const proposal_entity_1 = require("./entities/proposal.entity");
 const vote_entity_1 = require("./entities/vote.entity");
+const blockchain_module_1 = require("../blockchain/blockchain.module");
 let GovernanceModule = class GovernanceModule {
 };
 exports.GovernanceModule = GovernanceModule;
@@ -20,6 +21,7 @@ exports.GovernanceModule = GovernanceModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([proposal_entity_1.Proposal, vote_entity_1.Vote]),
+            blockchain_module_1.BlockchainModule,
         ],
         controllers: [governance_controller_1.GovernanceController],
         providers: [governance_service_1.GovernanceService],

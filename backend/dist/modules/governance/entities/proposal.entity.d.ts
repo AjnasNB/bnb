@@ -1,3 +1,4 @@
+import { Vote } from './vote.entity';
 export declare enum ProposalStatus {
     DRAFT = "draft",
     ACTIVE = "active",
@@ -16,6 +17,8 @@ export declare class Proposal {
     votesFor: string;
     votesAgainst: string;
     totalVotingPower: string;
+    metadata: any;
     createdAt: Date;
     updatedAt: Date;
+    votes: Vote[];
 }

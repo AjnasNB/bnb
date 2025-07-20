@@ -199,7 +199,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
 
   const loadUserData = async (walletAddress: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/v1/users?walletAddress=${walletAddress}`);
+      const response = await fetch(`http://localhost:3000/api/v1/users/wallet/${walletAddress}`);
       
       if (response.ok) {
         const data = await response.json();

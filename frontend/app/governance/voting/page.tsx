@@ -1,629 +1,496 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWeb3 } from '../../context/Web3Context';
 
 interface Claim {
   id: string;
-  claimId: string;
-  policyId: string;
-  userId: string;
-  type: string;
-  status: string;
-  requestedAmount: string;
+  policyTokenId: string;
+  claimant: string;
+  amount: string;
   description: string;
-  aiAnalysis: {
+  status: string;
+  submittedAt: string;
+  evidenceHashes: string[];
+  aiAnalysis?: {
     fraudScore: number;
     authenticityScore: number;
-    confidence: number;
     recommendation: string;
     reasoning: string;
     detectedIssues: string[];
   };
-  documents: string[];
-  images: string[];
-  submittedAt: string;
-  votingDeadline: string;
-  votes: {
-    for: string;
-    against: string;
-    abstain: string;
-  };
-  hasVoted: boolean;
-  userVote?: 'for' | 'against' | 'abstain';
 }
 
-interface VotingPower {
-  total: string;
-  available: string;
-  locked: string;
+interface Proposal {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  votesFor: string;
+  votesAgainst: string;
+  startTime: string;
+  endTime: string;
+  executed: boolean;
 }
 
 export default function VotingPage() {
-  const { isConnected, account, userData, chainId } = useWeb3();
+  const { account, isConnected, connectWallet } = useWeb3();
   const [claims, setClaims] = useState<Claim[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [votingPower, setVotingPower] = useState<VotingPower>({
-    total: '0',
-    available: '0',
-    locked: '0'
-  });
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
-  const [voteChoice, setVoteChoice] = useState<'for' | 'against' | 'abstain'>('for');
-  const [voting, setVoting] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'voted'>('all');
+  const [votingPower, setVotingPower] = useState('0');
+  const [loading, setLoading] = useState(true);
+  const [voteLoading, setVoteLoading] = useState(false);
+  const [voteChoice, setVoteChoice] = useState<'approve' | 'reject'>('approve');
+  const [voteReason, setVoteReason] = useState('');
 
   useEffect(() => {
-    if (isConnected && chainId === 97) {
-      fetchClaimsForVoting();
-      fetchVotingPower();
+    if (isConnected && account) {
+      loadVotingData();
     }
-  }, [isConnected, chainId]);
+  }, [isConnected, account]);
 
-  const fetchClaimsForVoting = async () => {
+  const loadVotingData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3000/api/v1/governance/claims-for-voting', {
-        headers: {
-          'Authorization': `Bearer ${account}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setClaims(data.claims || []);
-      } else {
-        console.error('Failed to fetch claims for voting');
-      }
+      
+      // Load claims that need voting
+      const claimsResponse = await fetch('/api/v1/claims?status=pending');
+      const claimsData = await claimsResponse.json();
+      
+      // Load governance proposals
+      const proposalsResponse = await fetch('/api/v1/blockchain/governance/proposals');
+      const proposalsData = await proposalsResponse.json();
+      
+      // Load user's voting power
+      const votingPowerResponse = await fetch(`/api/v1/blockchain/tokens/${account}`);
+      const votingPowerData = await votingPowerResponse.json();
+      
+      setClaims(claimsData.claims || []);
+      setProposals(proposalsData.proposals || []);
+      setVotingPower(votingPowerData.tokens?.governanceToken?.balance || '0');
+      
     } catch (error) {
-      console.error('Error fetching claims:', error);
+      console.error('Error loading voting data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchVotingPower = async () => {
+  const analyzeClaimWithAI = async (claimId: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/v1/governance/voting-power/${account}`);
-      if (response.ok) {
-        const data = await response.json();
-        setVotingPower(data);
-      }
-    } catch (error) {
-      console.error('Error fetching voting power:', error);
-    }
-  };
-
-  const submitVote = async (claimId: string, choice: 'for' | 'against' | 'abstain') => {
-    if (!account) return;
-
-    setVoting(true);
-    try {
-      // Submit vote to blockchain
-      const blockchainResponse = await fetch('http://localhost:3000/api/v1/blockchain/governance/vote', {
+      const response = await fetch('/api/v1/ai/analyze-claim', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer chainsure_dev_key_2024'
         },
         body: JSON.stringify({
           claimId,
-          voter: account,
-          choice,
-          votingPower: votingPower.available,
-        }),
+          claimType: 'general',
+          requestedAmount: selectedClaim?.amount || 0,
+          description: selectedClaim?.description || ''
+        })
       });
-
-      if (blockchainResponse.ok) {
-        // Update local state
-        setClaims(prev => prev.map(claim => 
-          claim.id === claimId 
-            ? {
-                ...claim,
-                hasVoted: true,
-                userVote: choice,
-                votes: {
-                  ...claim.votes,
-                  [choice]: (parseFloat(claim.votes[choice]) + parseFloat(votingPower.available)).toString()
-                }
-              }
-            : claim
-        ));
-
-        // Update voting power
-        await fetchVotingPower();
-        
-        // Close modal
-        setSelectedClaim(null);
-        
-        alert('Vote submitted successfully!');
-      } else {
-        throw new Error('Failed to submit vote to blockchain');
+      
+      const analysis = await response.json();
+      
+      // Update claim with AI analysis
+      setClaims(prev => prev.map(claim => 
+        claim.id === claimId 
+          ? { ...claim, aiAnalysis: analysis }
+          : claim
+      ));
+      
+      if (selectedClaim?.id === claimId) {
+        setSelectedClaim(prev => prev ? { ...prev, aiAnalysis: analysis } : null);
       }
+      
     } catch (error) {
-      console.error('Voting error:', error);
-      alert('Failed to submit vote. Please try again.');
+      console.error('Error analyzing claim with AI:', error);
+    }
+  };
+
+  const submitVote = async (claimId: string) => {
+    if (!account || !voteReason.trim()) {
+      alert('Please connect wallet and provide a reason for your vote');
+      return;
+    }
+
+    try {
+      setVoteLoading(true);
+      
+      const voteData = {
+        proposalId: claimId,
+        voter: account,
+        support: voteChoice === 'approve',
+        reason: voteReason,
+        votingPower: votingPower
+      };
+      
+      const response = await fetch('/api/v1/blockchain/governance/vote', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(voteData)
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('Vote submitted successfully! Transaction data prepared for wallet execution.');
+        // Reload data
+        await loadVotingData();
+        setVoteReason('');
+        setVoteChoice('approve');
+      } else {
+        alert('Failed to submit vote: ' + result.message);
+      }
+      
+    } catch (error) {
+      console.error('Error submitting vote:', error);
+      alert('Error submitting vote');
     } finally {
-      setVoting(false);
+      setVoteLoading(false);
     }
   };
 
-  const getFilteredClaims = () => {
-    switch (filter) {
-      case 'pending':
-        return claims.filter(claim => !claim.hasVoted && new Date(claim.votingDeadline) > new Date());
-      case 'voted':
-        return claims.filter(claim => claim.hasVoted);
-      default:
-        return claims;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'under_review': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getAIRecommendationBadge = (recommendation: string) => {
-    const badges = {
-      'approve': 'bg-green-100 text-green-800 border border-green-200',
-      'low_risk_approve': 'bg-green-100 text-green-800 border border-green-200',
-      'manual_review': 'bg-yellow-100 text-yellow-800 border border-yellow-200',
-      'standard_review': 'bg-yellow-100 text-yellow-800 border border-yellow-200',
-      'high_risk_reject': 'bg-red-100 text-red-800 border border-red-200',
-      'reject': 'bg-red-100 text-red-800 border border-red-200',
-    };
-
-    return badges[recommendation] || 'bg-gray-100 text-gray-800 border border-gray-200';
-  };
-
-  const formatAmount = (amount: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(parseFloat(amount));
+  const getFraudScoreColor = (score: number) => {
+    if (score < 30) return 'text-green-600';
+    if (score < 70) return 'text-yellow-600';
+    return 'text-red-600';
   };
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-indigo-100 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center py-20">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Community Governance</h1>
+            <p className="text-xl text-gray-600 mb-8">Connect your wallet to participate in claim voting</p>
+            <button
+              onClick={connectWallet}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors"
+            >
+              Connect Wallet
+            </button>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect Your Wallet</h2>
-          <p className="text-gray-600 mb-4">Please connect your MetaMask wallet to participate in governance voting.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (chainId !== 97) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
-            <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Wrong Network</h2>
-          <p className="text-gray-600 mb-4">Please switch to BSC Testnet to participate in governance voting.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Community Governance</h1>
-              <p className="text-sm text-gray-500">Vote on AI-analyzed claims</p>
+              <h1 className="text-3xl font-bold text-gray-900">Community Governance</h1>
+              <p className="text-gray-600 mt-2">Vote on insurance claims and governance proposals</p>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <div className="text-sm font-medium text-gray-900">
-                  Voting Power: {parseFloat(votingPower.available).toFixed(2)} CST
-                </div>
-                <div className="text-xs text-gray-500">
-                  Total: {parseFloat(votingPower.total).toFixed(2)} CST
-                </div>
-              </div>
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <div className="text-right">
+              <p className="text-sm text-gray-500">Voting Power</p>
+              <p className="text-2xl font-bold text-blue-600">{parseFloat(votingPower).toFixed(2)} CSG</p>
+              <p className="text-xs text-gray-400">Connected: {account?.slice(0, 6)}...{account?.slice(-4)}</p>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filter Tabs */}
-        <div className="mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              {[
-                { key: 'all', label: 'All Claims', count: claims.length },
-                { key: 'pending', label: 'Pending Votes', count: claims.filter(c => !c.hasVoted && new Date(c.votingDeadline) > new Date()).length },
-                { key: 'voted', label: 'Voted', count: claims.filter(c => c.hasVoted).length },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setFilter(tab.key as any)}
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
-                    filter === tab.key
-                      ? 'border-indigo-500 text-indigo-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {tab.label} ({tab.count})
-                </button>
-              ))}
-            </nav>
-          </div>
-        </div>
-
-        {/* Claims List */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="spinner mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading claims for voting...</p>
-          </div>
-        ) : getFilteredClaims().length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Claims Available</h3>
-            <p className="text-gray-500">There are no claims available for voting at the moment.</p>
+          <div className="text-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading voting data...</p>
           </div>
         ) : (
-          <div className="grid gap-6">
-            {getFilteredClaims().map((claim) => (
-              <div key={claim.id} className="card">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Claim #{claim.claimId.slice(0, 8)}...
-                      </h3>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getAIRecommendationBadge(claim.aiAnalysis.recommendation)}`}>
-                        AI: {claim.aiAnalysis.recommendation.replace('_', ' ').toUpperCase()}
-                      </span>
-                      {claim.hasVoted && (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                          Voted: {claim.userVote?.toUpperCase()}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Claims for Voting */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Claims Pending Review</h2>
+              
+              {claims.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No claims pending review</p>
+              ) : (
+                <div className="space-y-4">
+                  {claims.map((claim) => (
+                    <div
+                      key={claim.id}
+                      className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => setSelectedClaim(claim)}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-gray-900">Claim #{claim.id}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(claim.status)}`}>
+                          {claim.status}
                         </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Amount</p>
+                          <p className="font-semibold">${parseFloat(claim.amount).toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Policy ID</p>
+                          <p className="font-mono text-xs">#{claim.policyTokenId}</p>
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-600 text-sm mt-2 line-clamp-2">
+                        {claim.description}
+                      </p>
+                      
+                      {claim.aiAnalysis && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">AI Fraud Score:</span>
+                            <span className={`text-sm font-semibold ${getFraudScoreColor(claim.aiAnalysis.fraudScore)}`}>
+                              {claim.aiAnalysis.fraudScore}%
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Recommendation:</span>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              claim.aiAnalysis.recommendation === 'approve' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {claim.aiAnalysis.recommendation}
+                            </span>
+                          </div>
+                        </div>
                       )}
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            {/* Selected Claim Details */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Claim Details</h2>
+              
+              {selectedClaim ? (
+                <div className="space-y-6">
+                  {/* Basic Info */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Claim Information</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Type</p>
-                        <p className="text-sm text-gray-900 capitalize">{claim.type}</p>
+                        <p className="text-gray-500">Claim ID</p>
+                        <p className="font-mono">#{selectedClaim.id}</p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Requested Amount</p>
-                        <p className="text-sm text-gray-900">{formatAmount(claim.requestedAmount)}</p>
+                        <p className="text-gray-500">Policy ID</p>
+                        <p className="font-mono">#{selectedClaim.policyTokenId}</p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Voting Deadline</p>
-                        <p className="text-sm text-gray-900">
-                          {new Date(claim.votingDeadline).toLocaleDateString()}
-                        </p>
+                        <p className="text-gray-500">Amount</p>
+                        <p className="font-semibold text-lg">${parseFloat(selectedClaim.amount).toFixed(2)}</p>
                       </div>
-                    </div>
-
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">{claim.description}</p>
-
-                    {/* AI Analysis Summary */}
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">AI Analysis Summary</h4>
-                      <div className="grid grid-cols-3 gap-4 mb-3">
-                        <div>
-                          <p className="text-xs text-gray-500">Fraud Risk</p>
-                          <div className="flex items-center">
-                            <div className={`w-12 h-2 rounded-full mr-2 ${
-                              claim.aiAnalysis.fraudScore < 0.3 ? 'bg-green-400' :
-                              claim.aiAnalysis.fraudScore < 0.7 ? 'bg-yellow-400' : 'bg-red-400'
-                            }`}></div>
-                            <span className="text-sm font-medium">
-                              {(claim.aiAnalysis.fraudScore * 100).toFixed(0)}%
-                            </span>
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Authenticity</p>
-                          <div className="flex items-center">
-                            <div className={`w-12 h-2 rounded-full mr-2 ${
-                              claim.aiAnalysis.authenticityScore > 0.7 ? 'bg-green-400' :
-                              claim.aiAnalysis.authenticityScore > 0.4 ? 'bg-yellow-400' : 'bg-red-400'
-                            }`}></div>
-                            <span className="text-sm font-medium">
-                              {(claim.aiAnalysis.authenticityScore * 100).toFixed(0)}%
-                            </span>
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Confidence</p>
-                          <div className="flex items-center">
-                            <div className={`w-12 h-2 rounded-full mr-2 ${
-                              claim.aiAnalysis.confidence > 0.7 ? 'bg-green-400' :
-                              claim.aiAnalysis.confidence > 0.4 ? 'bg-yellow-400' : 'bg-red-400'
-                            }`}></div>
-                            <span className="text-sm font-medium">
-                              {(claim.aiAnalysis.confidence * 100).toFixed(0)}%
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-600">{claim.aiAnalysis.reasoning}</p>
-                    </div>
-
-                    {/* Current Votes */}
-                    <div className="grid grid-cols-3 gap-4 mb-4">
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-green-600">
-                          {parseFloat(claim.votes.for).toFixed(0)}
-                        </div>
-                        <div className="text-xs text-gray-500">FOR</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-red-600">
-                          {parseFloat(claim.votes.against).toFixed(0)}
-                        </div>
-                        <div className="text-xs text-gray-500">AGAINST</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-gray-600">
-                          {parseFloat(claim.votes.abstain).toFixed(0)}
-                        </div>
-                        <div className="text-xs text-gray-500">ABSTAIN</div>
+                      <div>
+                        <p className="text-gray-500">Status</p>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedClaim.status)}`}>
+                          {selectedClaim.status}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="ml-6 flex flex-col space-y-2">
-                    <button
-                      onClick={() => setSelectedClaim(claim)}
-                      className="btn-primary text-sm px-4 py-2"
-                    >
-                      View Details
-                    </button>
-                    {!claim.hasVoted && new Date(claim.votingDeadline) > new Date() && (
-                      <button
-                        onClick={() => {
-                          setSelectedClaim(claim);
-                          setVoteChoice('for');
-                        }}
-                        className="btn-secondary text-sm px-4 py-2"
-                      >
-                        Vote Now
-                      </button>
+                  {/* Description */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
+                    <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">
+                      {selectedClaim.description}
+                    </p>
+                  </div>
+
+                  {/* AI Analysis */}
+                  <div>
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900">AI Analysis</h3>
+                      {!selectedClaim.aiAnalysis && (
+                        <button
+                          onClick={() => analyzeClaimWithAI(selectedClaim.id)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded transition-colors"
+                        >
+                          Analyze
+                        </button>
+                      )}
+                    </div>
+                    
+                    {selectedClaim.aiAnalysis ? (
+                      <div className="bg-blue-50 p-4 rounded-lg space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-500">Fraud Score</p>
+                            <p className={`text-lg font-semibold ${getFraudScoreColor(selectedClaim.aiAnalysis.fraudScore)}`}>
+                              {selectedClaim.aiAnalysis.fraudScore}%
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Authenticity</p>
+                            <p className="text-lg font-semibold text-blue-600">
+                              {Math.round(selectedClaim.aiAnalysis.authenticityScore * 100)}%
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <p className="text-sm text-gray-500">AI Recommendation</p>
+                          <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                            selectedClaim.aiAnalysis.recommendation === 'approve' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {selectedClaim.aiAnalysis.recommendation.toUpperCase()}
+                          </span>
+                        </div>
+                        
+                        <div>
+                          <p className="text-sm text-gray-500">Reasoning</p>
+                          <p className="text-sm text-gray-700 mt-1">
+                            {selectedClaim.aiAnalysis.reasoning}
+                          </p>
+                        </div>
+                        
+                        {selectedClaim.aiAnalysis.detectedIssues.length > 0 && (
+                          <div>
+                            <p className="text-sm text-gray-500">Detected Issues</p>
+                            <ul className="text-sm text-gray-700 mt-1 space-y-1">
+                              {selectedClaim.aiAnalysis.detectedIssues.map((issue, index) => (
+                                <li key={index} className="flex items-start">
+                                  <span className="text-red-500 mr-2">•</span>
+                                  {issue}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-8">Click "Analyze" to get AI insights</p>
                     )}
                   </div>
+
+                  {/* Voting Section */}
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Cast Your Vote</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Vote Choice</label>
+                        <div className="flex space-x-4">
+                          <label className="flex items-center">
+                            <input
+                              type="radio"
+                              value="approve"
+                              checked={voteChoice === 'approve'}
+                              onChange={(e) => setVoteChoice(e.target.value as 'approve' | 'reject')}
+                              className="mr-2"
+                            />
+                            <span className="text-green-700 font-medium">Approve</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="radio"
+                              value="reject"
+                              checked={voteChoice === 'reject'}
+                              onChange={(e) => setVoteChoice(e.target.value as 'approve' | 'reject')}
+                              className="mr-2"
+                            />
+                            <span className="text-red-700 font-medium">Reject</span>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Reason for Vote *
+                        </label>
+                        <textarea
+                          value={voteReason}
+                          onChange={(e) => setVoteReason(e.target.value)}
+                          placeholder="Explain your voting decision..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows={3}
+                        />
+                      </div>
+                      
+                      <button
+                        onClick={() => submitVote(selectedClaim.id)}
+                        disabled={voteLoading || !voteReason.trim()}
+                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                      >
+                        {voteLoading ? 'Submitting Vote...' : 'Submit Vote'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ) : (
+                <div className="text-center py-20">
+                  <div className="text-gray-400 text-6xl mb-4">📋</div>
+                  <p className="text-gray-500">Select a claim to view details and vote</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Governance Proposals */}
+        {proposals.length > 0 && (
+          <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Governance Proposals</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {proposals.map((proposal) => (
+                <div key={proposal.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="font-semibold text-gray-900">{proposal.title}</h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      proposal.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {proposal.status}
+                    </span>
+                  </div>
+                  
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                    {proposal.description}
+                  </p>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Votes For:</span>
+                      <span className="font-semibold text-green-600">{parseFloat(proposal.votesFor).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Votes Against:</span>
+                      <span className="font-semibold text-red-600">{parseFloat(proposal.votesAgainst).toFixed(2)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 pt-3 border-t border-gray-100">
+                    <p className="text-xs text-gray-500">
+                      Ends: {new Date(proposal.endTime).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
-
-      {/* Voting Modal */}
-      {selectedClaim && (
-        <div className="modal-overlay">
-          <div className="modal-content max-w-4xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">
-                Claim Details & Voting
-              </h2>
-              <button
-                onClick={() => setSelectedClaim(null)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Claim Details */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Claim Information</h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Claim ID</label>
-                    <p className="text-sm text-gray-900">{selectedClaim.claimId}</p>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Type</label>
-                    <p className="text-sm text-gray-900 capitalize">{selectedClaim.type}</p>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Requested Amount</label>
-                    <p className="text-sm text-gray-900">{formatAmount(selectedClaim.requestedAmount)}</p>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Description</label>
-                    <p className="text-sm text-gray-900">{selectedClaim.description}</p>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Documents</label>
-                    <p className="text-sm text-gray-900">{selectedClaim.documents.length} documents uploaded</p>
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Images</label>
-                    <p className="text-sm text-gray-900">{selectedClaim.images.length} images uploaded</p>
-                  </div>
-                </div>
-
-                {/* AI Analysis Details */}
-                <div className="mt-6">
-                  <h4 className="text-lg font-semibold mb-4">AI Analysis Report</h4>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Recommendation</label>
-                        <span className={`ml-2 px-2 py-1 text-xs font-medium rounded-full ${getAIRecommendationBadge(selectedClaim.aiAnalysis.recommendation)}`}>
-                          {selectedClaim.aiAnalysis.recommendation.replace('_', ' ').toUpperCase()}
-                        </span>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Reasoning</label>
-                        <p className="text-sm text-gray-900">{selectedClaim.aiAnalysis.reasoning}</p>
-                      </div>
-                      
-                      {selectedClaim.aiAnalysis.detectedIssues.length > 0 && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-500">Detected Issues</label>
-                          <ul className="text-sm text-gray-900 list-disc list-inside">
-                            {selectedClaim.aiAnalysis.detectedIssues.map((issue, index) => (
-                              <li key={index}>{issue}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Voting Section */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Cast Your Vote</h3>
-                
-                {selectedClaim.hasVoted ? (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-                      <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">Vote Submitted</h4>
-                    <p className="text-gray-600">
-                      You voted: <span className="font-medium uppercase">{selectedClaim.userVote}</span>
-                    </p>
-                  </div>
-                ) : new Date(selectedClaim.votingDeadline) <= new Date() ? (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">Voting Closed</h4>
-                    <p className="text-gray-600">The voting period for this claim has ended.</p>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="mb-6">
-                      <label className="text-sm font-medium text-gray-700 mb-3 block">
-                        Your Vote Choice
-                      </label>
-                      <div className="space-y-3">
-                        {[
-                          { value: 'for', label: 'Approve Claim', description: 'I believe this claim should be approved and paid', color: 'green' },
-                          { value: 'against', label: 'Reject Claim', description: 'I believe this claim should be rejected', color: 'red' },
-                          { value: 'abstain', label: 'Abstain', description: 'I choose not to vote on this claim', color: 'gray' },
-                        ].map((option) => (
-                          <label key={option.value} className="flex items-start space-x-3 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="vote"
-                              value={option.value}
-                              checked={voteChoice === option.value}
-                              onChange={(e) => setVoteChoice(e.target.value as any)}
-                              className="mt-1"
-                            />
-                            <div className="flex-1">
-                              <div className={`font-medium text-${option.color}-800`}>
-                                {option.label}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {option.description}
-                              </div>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="mb-6">
-                      <label className="text-sm font-medium text-gray-700">Voting Power</label>
-                      <p className="text-lg font-bold text-indigo-600">
-                        {parseFloat(votingPower.available).toFixed(2)} CST
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Available for voting
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => submitVote(selectedClaim.id, voteChoice)}
-                      disabled={voting || parseFloat(votingPower.available) <= 0}
-                      className="w-full btn-primary flex items-center justify-center"
-                    >
-                      {voting ? (
-                        <>
-                          <div className="spinner mr-2"></div>
-                          Submitting Vote...
-                        </>
-                      ) : (
-                        `Submit Vote (${voteChoice.toUpperCase()})`
-                      )}
-                    </button>
-
-                    {parseFloat(votingPower.available) <= 0 && (
-                      <p className="text-sm text-red-600 mt-2 text-center">
-                        You don't have enough voting power to vote on this claim.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Current Vote Tally */}
-                <div className="mt-8">
-                  <h4 className="text-lg font-semibold mb-4">Current Results</h4>
-                  <div className="space-y-3">
-                    {[
-                      { key: 'for', label: 'For', color: 'green', value: selectedClaim.votes.for },
-                      { key: 'against', label: 'Against', color: 'red', value: selectedClaim.votes.against },
-                      { key: 'abstain', label: 'Abstain', color: 'gray', value: selectedClaim.votes.abstain },
-                    ].map((vote) => {
-                      const total = parseFloat(selectedClaim.votes.for) + parseFloat(selectedClaim.votes.against) + parseFloat(selectedClaim.votes.abstain);
-                      const percentage = total > 0 ? (parseFloat(vote.value) / total) * 100 : 0;
-                      
-                      return (
-                        <div key={vote.key}>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-sm font-medium text-gray-700">{vote.label}</span>
-                            <span className="text-sm text-gray-600">
-                              {parseFloat(vote.value).toFixed(0)} CST ({percentage.toFixed(1)}%)
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className={`bg-${vote.color}-500 h-2 rounded-full transition-all duration-300`}
-                              style={{ width: `${percentage}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

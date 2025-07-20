@@ -34,6 +34,12 @@ let BlockchainController = class BlockchainController {
     async getTokenBalances(address) {
         return this.contractService.getTokenBalances(address);
     }
+    async getUserPolicies(address) {
+        return this.contractService.getUserPolicies(address);
+    }
+    async getLiquidityInfo() {
+        return this.contractService.getLiquidityInfo();
+    }
     async createPolicy(policyData) {
         return this.contractService.createPolicy(policyData);
     }
@@ -62,19 +68,19 @@ let BlockchainController = class BlockchainController {
         return this.contractService.voteOnProposal(voteData);
     }
     async healthCheck() {
-        return this.blockchainService.healthCheck();
+        return this.contractService.healthCheck();
     }
 };
 exports.BlockchainController = BlockchainController;
 __decorate([
-    (0, common_1.Get)('network-info'),
+    (0, common_1.Get)('network'),
     (0, swagger_1.ApiOperation)({ summary: 'Get network information' }),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], BlockchainController.prototype, "getNetworkInfo", null);
 __decorate([
-    (0, common_1.Get)('contract-addresses'),
+    (0, common_1.Get)('contracts'),
     (0, swagger_1.ApiOperation)({ summary: 'Get deployed contract addresses' }),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
@@ -89,7 +95,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], BlockchainController.prototype, "getBalance", null);
 __decorate([
-    (0, common_1.Get)('token-balances/:address'),
+    (0, common_1.Get)('tokens/:address'),
     (0, swagger_1.ApiOperation)({ summary: 'Get token balances for address' }),
     __param(0, (0, common_1.Param)('address')),
     __metadata("design:type", Function),
@@ -97,7 +103,22 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], BlockchainController.prototype, "getTokenBalances", null);
 __decorate([
-    (0, common_1.Post)('create-policy'),
+    (0, common_1.Get)('policies/:address'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get user policies from blockchain' }),
+    __param(0, (0, common_1.Param)('address')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], BlockchainController.prototype, "getUserPolicies", null);
+__decorate([
+    (0, common_1.Get)('liquidity'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get liquidity information' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], BlockchainController.prototype, "getLiquidityInfo", null);
+__decorate([
+    (0, common_1.Post)('policy/create'),
     (0, swagger_1.ApiOperation)({ summary: 'Create new policy on blockchain' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -105,7 +126,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], BlockchainController.prototype, "createPolicy", null);
 __decorate([
-    (0, common_1.Post)('submit-claim'),
+    (0, common_1.Post)('claim/submit'),
     (0, swagger_1.ApiOperation)({ summary: 'Submit claim to blockchain' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -113,7 +134,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], BlockchainController.prototype, "submitClaim", null);
 __decorate([
-    (0, common_1.Post)('stake-tokens'),
+    (0, common_1.Post)('stake'),
     (0, swagger_1.ApiOperation)({ summary: 'Stake governance tokens' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),

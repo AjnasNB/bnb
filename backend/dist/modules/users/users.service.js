@@ -5,93 +5,98 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var UsersService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersService = void 0;
 const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const user_entity_1 = require("./entities/user.entity");
 let UsersService = UsersService_1 = class UsersService {
-    constructor() {
+    constructor(userRepository) {
+        this.userRepository = userRepository;
         this.logger = new common_1.Logger(UsersService_1.name);
     }
     async findAll(pagination) {
-        const mockUsers = [
-            {
-                id: '1',
-                email: 'john.doe@example.com',
-                firstName: 'John',
-                lastName: 'Doe',
-                walletAddress: '0x742d35Cc9A9A2A3B9b1C53B59FF75aC8A24B23c0',
-                isActive: true,
-                isVerified: true,
-                createdAt: new Date().toISOString(),
-            },
-            {
-                id: '2',
-                email: 'sarah.smith@example.com',
-                firstName: 'Sarah',
-                lastName: 'Smith',
-                walletAddress: '0x8ba1f109551bD432803012645Hac136c20F0288e',
-                isActive: true,
-                isVerified: true,
-                createdAt: new Date().toISOString(),
-            },
-        ];
         const { page, limit } = pagination;
-        const startIndex = (page - 1) * limit;
-        const endIndex = startIndex + limit;
+        const skip = (page - 1) * limit;
+        const [users, total] = await this.userRepository.findAndCount({
+            skip,
+            take: limit,
+            order: { createdAt: 'DESC' },
+        });
         return {
-            users: mockUsers.slice(startIndex, endIndex),
-            total: mockUsers.length,
+            users,
+            total,
             page,
             limit,
-            totalPages: Math.ceil(mockUsers.length / limit),
+            totalPages: Math.ceil(total / limit),
         };
     }
     async findOne(id) {
-        return {
-            id,
-            email: 'john.doe@example.com',
-            firstName: 'John',
-            lastName: 'Doe',
-            walletAddress: '0x742d35Cc9A9A2A3B9b1C53B59FF75aC8A24B23c0',
-            isActive: true,
-            isVerified: true,
-            avatar: null,
-            phone: null,
-            preferences: {
-                notifications: { email: true, push: true },
-                currency: 'USD',
-                language: 'en',
-            },
-            createdAt: new Date().toISOString(),
-        };
+        const user = await this.userRepository.findOne({ where: { id } });
+        if (!user) {
+            throw new Error('User not found');
+        }
+        return user;
+    }
+    async findByWalletAddress(walletAddress) {
+        const user = await this.userRepository.findOne({
+            where: { walletAddress }
+        });
+        return user;
     }
     async create(userData) {
         this.logger.log(`Creating user: ${userData.email}`);
-        const user = {
-            id: `user_${Date.now()}`,
+        const existingUser = await this.findByWalletAddress(userData.walletAddress);
+        if (existingUser) {
+            return {
+                success: true,
+                user: existingUser,
+                message: 'User already exists',
+                isNewUser: false,
+            };
+        }
+        const existingEmail = await this.userRepository.findOne({
+            where: { email: userData.email }
+        });
+        if (existingEmail) {
+            throw new Error('Email already registered');
+        }
+        const user = this.userRepository.create({
             ...userData,
             isActive: true,
             isVerified: false,
-            createdAt: new Date().toISOString(),
-        };
+        });
+        const savedUser = await this.userRepository.save(user);
         return {
             success: true,
-            user,
+            user: savedUser,
             message: 'User created successfully',
+            isNewUser: true,
         };
     }
     async update(id, userData) {
         this.logger.log(`Updating user: ${id}`);
+        const user = await this.findOne(id);
+        const updatedUser = Object.assign(user, userData);
+        const savedUser = await this.userRepository.save(updatedUser);
         return {
             success: true,
-            id,
-            updatedData: userData,
+            user: savedUser,
             message: 'User updated successfully',
         };
     }
     async remove(id) {
         this.logger.log(`Deleting user: ${id}`);
+        const user = await this.findOne(id);
+        await this.userRepository.remove(user);
         return {
             success: true,
             id,
@@ -101,62 +106,22 @@ let UsersService = UsersService_1 = class UsersService {
     async getUserPolicies(userId) {
         return {
             userId,
-            policies: [
-                {
-                    id: 'pol_1',
-                    type: 'health',
-                    status: 'active',
-                    coverageAmount: '50000',
-                    premiumAmount: '150',
-                    startDate: '2024-01-01',
-                    endDate: '2024-12-31',
-                    nftTokenId: '1',
-                },
-                {
-                    id: 'pol_2',
-                    type: 'vehicle',
-                    status: 'active',
-                    coverageAmount: '25000',
-                    premiumAmount: '200',
-                    startDate: '2024-01-01',
-                    endDate: '2024-12-31',
-                    nftTokenId: '2',
-                },
-            ],
-            total: 2,
+            policies: [],
+            total: 0,
         };
     }
     async getUserClaims(userId) {
         return {
             userId,
-            claims: [
-                {
-                    id: 'claim_1',
-                    policyId: 'pol_1',
-                    type: 'health',
-                    status: 'approved',
-                    requestedAmount: '1250',
-                    approvedAmount: '1250',
-                    description: 'Emergency room visit',
-                    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                },
-                {
-                    id: 'claim_2',
-                    policyId: 'pol_2',
-                    type: 'vehicle',
-                    status: 'under_review',
-                    requestedAmount: '3500',
-                    approvedAmount: null,
-                    description: 'Accident damage repair',
-                    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-                },
-            ],
-            total: 2,
+            claims: [],
+            total: 0,
         };
     }
 };
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = UsersService_1 = __decorate([
-    (0, common_1.Injectable)()
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __metadata("design:paramtypes", [typeorm_2.Repository])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

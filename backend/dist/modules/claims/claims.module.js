@@ -12,6 +12,8 @@ const typeorm_1 = require("@nestjs/typeorm");
 const claims_controller_1 = require("./claims.controller");
 const claims_service_1 = require("./claims.service");
 const claim_entity_1 = require("./entities/claim.entity");
+const blockchain_module_1 = require("../blockchain/blockchain.module");
+const governance_module_1 = require("../governance/governance.module");
 let ClaimsModule = class ClaimsModule {
 };
 exports.ClaimsModule = ClaimsModule;
@@ -19,6 +21,8 @@ exports.ClaimsModule = ClaimsModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([claim_entity_1.Claim]),
+            blockchain_module_1.BlockchainModule,
+            governance_module_1.GovernanceModule,
         ],
         controllers: [claims_controller_1.ClaimsController],
         providers: [claims_service_1.ClaimsService],

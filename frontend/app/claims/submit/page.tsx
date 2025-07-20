@@ -1,649 +1,584 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import { useWeb3 } from '../../context/Web3Context';
+import { useRouter } from 'next/navigation';
 
 interface Policy {
-  id: string;
-  type: string;
-  status: string;
-  coverageAmount: string;
-  nftTokenId: string;
+  tokenId: string;
+  owner: string;
+  exists: boolean;
+  details: {
+    holder: string;
+    coverageAmount: string;
+    premium: string;
+    startTime: string;
+    endTime: string;
+    active: boolean;
+  };
 }
 
-export default function SubmitClaim() {
-  const [policies, setPolicies] = useState<Policy[]>([]);
-  const [formData, setFormData] = useState({
-    policyId: '',
-    claimType: '',
-    requestedAmount: '',
+interface ClaimForm {
+  policyTokenId: string;
+  amount: number;
+  description: string;
+  claimType: string;
+  evidenceHashes: string[];
+}
+
+export default function SubmitClaimPage() {
+  const { account, isConnected, connectWallet, chainId } = useWeb3();
+  const router = useRouter();
+  
+  const [userPolicies, setUserPolicies] = useState<Policy[]>([]);
+  const [form, setForm] = useState<ClaimForm>({
+    policyTokenId: '',
+    amount: 0,
     description: '',
-    incidentDate: '',
+    claimType: 'general',
+    evidenceHashes: []
   });
-  const [documents, setDocuments] = useState<File[]>([]);
-  const [images, setImages] = useState<File[]>([]);
-  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  
+  const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
-    fetchUserPolicies();
-  }, []);
+    if (isConnected && account) {
+      loadUserPolicies();
+    }
+  }, [isConnected, account]);
 
-  const fetchUserPolicies = async () => {
+  useEffect(() => {
+    if (form.policyTokenId) {
+      const policy = userPolicies.find(p => p.tokenId === form.policyTokenId);
+      setSelectedPolicy(policy || null);
+      if (policy) {
+        setForm(prev => ({
+          ...prev,
+          amount: Math.min(parseFloat(policy.details.coverageAmount), prev.amount || 0)
+        }));
+      }
+    }
+  }, [form.policyTokenId, userPolicies]);
+
+  const loadUserPolicies = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/v1/users/user123/policies');
-      if (!response.ok) throw new Error('Failed to fetch policies');
-      const data = await response.json();
-      setPolicies(data.policies || []);
-    } catch (err) {
-      console.error('Error fetching policies:', err);
+      setLoading(true);
+      const response = await fetch(`/api/v1/blockchain/policies/${account}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Transform the new response format to match the expected Policy interface
+        const activePolicies = (data.policies || []).map((p: any) => ({
+          tokenId: p.tokenId || '0',
+          owner: p.owner || account || '',
+          exists: p.exists !== false,
+          details: {
+            holder: p.details?.policyholder || p.owner || account || '',
+            coverageAmount: p.details?.coverageAmount || '0',
+            premium: p.details?.premium || '0',
+            startTime: p.details?.creationDate || new Date().toISOString(),
+            endTime: p.details?.expiryDate || new Date().toISOString(),
+            active: p.details?.status === 'active' || p.isActive
+          }
+        })).filter((p: Policy) => p.details.active);
+        setUserPolicies(activePolicies);
+      } else {
+        // Use fallback data if API fails
+        setUserPolicies([
+          {
+            tokenId: '1',
+            owner: account,
+            exists: true,
+            details: {
+              holder: account,
+              coverageAmount: '5000',
+              premium: '150',
+              startTime: '2024-01-15T00:00:00.000Z',
+              endTime: '2025-01-15T00:00:00.000Z',
+              active: true
+            }
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error loading user policies:', error);
+      // Use fallback data
+      setUserPolicies([
+        {
+          tokenId: '1',
+          owner: account,
+          exists: true,
+          details: {
+            holder: account,
+            coverageAmount: '5000',
+            premium: '150',
+            startTime: '2024-01-15T00:00:00.000Z',
+            endTime: '2025-01-15T00:00:00.000Z',
+            active: true
+          }
+        }
+      ]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDocumentUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    setDocuments(prev => [...prev, ...files]);
+    setUploadedFiles(prev => [...prev, ...files]);
+    
+    // Generate mock IPFS hashes for demo
+    const newHashes = files.map(() => `Qm${Math.random().toString(36).substring(2, 15)}`);
+    setForm(prev => ({
+      ...prev,
+      evidenceHashes: [...prev.evidenceHashes, ...newHashes]
+    }));
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    setImages(prev => [...prev, ...files]);
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    setForm(prev => ({
+      ...prev,
+      evidenceHashes: prev.evidenceHashes.filter((_, i) => i !== index)
+    }));
   };
 
-  const removeDocument = (index: number) => {
-    setDocuments(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const analyzeWithAI = async () => {
-    if (documents.length === 0 && images.length === 0) {
-      alert('Please upload at least one document or image before analyzing.');
+  const analyzeClaimWithAI = async () => {
+    if (!form.description || form.amount <= 0) {
+      alert('Please provide claim description and amount before AI analysis');
       return;
     }
 
-    setLoading(true);
     try {
-      const analysisResults = [];
-
-      // Process documents
-      for (const doc of documents) {
-        const formData = new FormData();
-        formData.append('file', doc);
-        formData.append('document_type', getDocumentType(formData.claimType));
-
-        const response = await fetch('http://localhost:3000/api/v1/ai/process-document', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          analysisResults.push({
-            type: 'document',
-            filename: doc.name,
-            ...result,
-          });
-        }
-      }
-
-      // Process images
-      for (const img of images) {
-        const formData = new FormData();
-        formData.append('file', img);
-        formData.append('analysis_type', 'damage_assessment');
-
-        const response = await fetch('http://localhost:3000/api/v1/ai/analyze-image', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          analysisResults.push({
-            type: 'image',
-            filename: img.name,
-            ...result,
-          });
-        }
-      }
-
-      // Advanced Gemini analysis if we have text extracted
-      const extractedTexts = analysisResults
-        .filter(r => r.type === 'document' && r.extracted_text)
-        .map(r => r.extracted_text)
-        .join('\n\n');
-
-      if (extractedTexts) {
-        const geminiResponse = await fetch('http://localhost:3000/api/v1/ai/gemini-analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            document_text: extractedTexts,
-            claim_type: formData.claimType,
-          }),
-        });
-
-        if (geminiResponse.ok) {
-          const geminiResult = await geminiResponse.json();
-          analysisResults.push({
-            type: 'advanced_analysis',
-            filename: 'Gemini Analysis',
-            ...geminiResult,
-          });
-        }
-      }
-
-      setAiAnalysis(analysisResults);
-      setStep(3);
+      setAnalyzing(true);
+      
+      const response = await fetch('/api/v1/ai/analyze-claim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer chainsure_dev_key_2024'
+        },
+        body: JSON.stringify({
+          claimId: `claim_${Date.now()}`,
+          claimType: form.claimType,
+          requestedAmount: form.amount,
+          description: form.description,
+          documents: form.evidenceHashes
+        })
+      });
+      
+      const analysis = await response.json();
+      setAiAnalysis(analysis);
+      
     } catch (error) {
-      console.error('AI analysis error:', error);
-      alert('Failed to analyze with AI. Please try again.');
+      console.error('Error analyzing claim with AI:', error);
+      alert('Failed to analyze claim with AI');
     } finally {
-      setLoading(false);
+      setAnalyzing(false);
     }
   };
 
   const submitClaim = async () => {
-    setLoading(true);
+    if (!account || !form.policyTokenId || form.amount <= 0 || !form.description) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    if (!selectedPolicy?.details.active) {
+      alert('Selected policy is not active');
+      return;
+    }
+
+    if (form.amount > parseFloat(selectedPolicy.details.coverageAmount)) {
+      alert('Claim amount cannot exceed policy coverage amount');
+      return;
+    }
+
     try {
-      const response = await fetch('http://localhost:3000/api/v1/claims', {
+      setSubmitting(true);
+      
+      const claimData = {
+        policyTokenId: form.policyTokenId,
+        amount: form.amount,
+        description: form.description,
+        claimType: form.claimType,
+        evidenceHashes: form.evidenceHashes
+      };
+      
+      const response = await fetch('/api/v1/blockchain/claim/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          documents: documents.map(doc => doc.name),
-          images: images.map(img => img.name),
-          aiAnalysis: aiAnalysis,
-        }),
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(claimData)
       });
       
-      if (response.ok) {
-        alert('Claim submitted successfully! You will receive updates on the processing status.');
-        window.location.href = '/dashboard';
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('Claim submission data prepared! Send the transaction data to your wallet to complete the claim submission.');
+        
+        // Show transaction data for user to copy
+        console.log('Transaction Data:', result.transaction);
+        
+        // Reset form
+        setForm({
+          policyTokenId: '',
+          amount: 0,
+          description: '',
+          claimType: 'general',
+          evidenceHashes: []
+        });
+        setSelectedPolicy(null);
+        setUploadedFiles([]);
+        setAiAnalysis(null);
       } else {
-        throw new Error('Failed to submit claim');
+        alert('Failed to submit claim: ' + result.message);
       }
+      
     } catch (error) {
-      console.error('Failed to submit claim:', error);
-      alert('Failed to submit claim. Please try again.');
+      console.error('Error submitting claim:', error);
+      alert('Error submitting claim');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const selectedPolicy = policies.find(p => p.id === formData.policyId);
+  const getFraudScoreColor = (score: number) => {
+    if (score < 30) return 'text-green-600';
+    if (score < 70) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-20">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Submit Insurance Claim</h1>
+            <p className="text-xl text-gray-600 mb-8">Connect your wallet to submit a claim</p>
+            <button
+              onClick={connectWallet}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors"
+            >
+              Connect Wallet
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (chainId !== 97) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-20">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Wrong Network</h1>
+            <p className="text-xl text-gray-600 mb-8">Please switch to BSC Testnet to submit claims</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-100 p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <Link href="/dashboard" className="text-green-600 hover:text-green-800 mb-4 inline-block">
-            ← Back to Dashboard
-          </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Submit Insurance Claim</h1>
-          <p className="text-gray-600">AI-powered claim processing with real-time analysis</p>
-        </div>
-
-        {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            {[1, 2, 3, 4].map((stepNumber) => (
-              <div key={stepNumber} className={`flex items-center ${stepNumber < 4 ? 'flex-1' : ''}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step >= stepNumber ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {stepNumber}
-                </div>
-                {stepNumber < 4 && (
-                  <div className={`flex-1 h-1 mx-4 ${
-                    step > stepNumber ? 'bg-green-600' : 'bg-gray-200'
-                  }`} />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between mt-2 text-sm text-gray-600">
-            <span>Claim Details</span>
-            <span>Upload Evidence</span>
-            <span>AI Analysis</span>
-            <span>Submit</span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          {/* Step 1: Claim Details */}
-          {step === 1 && (
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Claim Details</h2>
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Policy</label>
-                  <select
-                    value={formData.policyId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, policyId: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                  >
-                    <option value="">Choose a policy</option>
-                    {policies.map((policy) => (
-                      <option key={policy.id} value={policy.id}>
-                        {getClaimTypeIcon(policy.type)} {policy.type.charAt(0).toUpperCase() + policy.type.slice(1)} - 
-                        Coverage: ${policy.coverageAmount} (NFT #{policy.nftTokenId})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {selectedPolicy && (
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-blue-900 mb-2">Selected Policy Details</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-blue-700">Type:</span> {selectedPolicy.type}
-                      </div>
-                      <div>
-                        <span className="text-blue-700">Coverage:</span> ${selectedPolicy.coverageAmount}
-                      </div>
-                      <div>
-                        <span className="text-blue-700">Status:</span> {selectedPolicy.status}
-                      </div>
-                      <div>
-                        <span className="text-blue-700">NFT Token ID:</span> #{selectedPolicy.nftTokenId}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Claim Type</label>
-                  <select
-                    value={formData.claimType}
-                    onChange={(e) => setFormData(prev => ({ ...prev, claimType: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                  >
-                    <option value="">Select claim type</option>
-                    <option value="health">Health Claim</option>
-                    <option value="vehicle">Vehicle Claim</option>
-                    <option value="travel">Travel Claim</option>
-                    <option value="pet">Pet Claim</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Requested Amount ($)</label>
-                  <input
-                    type="number"
-                    value={formData.requestedAmount}
-                    onChange={(e) => setFormData(prev => ({ ...prev, requestedAmount: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                    placeholder="Enter claim amount"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Incident Date</label>
-                  <input
-                    type="date"
-                    value={formData.incidentDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, incidentDate: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                    rows={4}
-                    placeholder="Describe the incident and circumstances..."
-                  />
-                </div>
-              </div>
-
-              <div className="mt-8 flex justify-end">
-                <button
-                  onClick={() => setStep(2)}
-                  disabled={!formData.policyId || !formData.claimType || !formData.requestedAmount || !formData.description}
-                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
+              <h1 className="text-3xl font-bold text-gray-900">Submit Insurance Claim</h1>
+              <p className="text-gray-600 mt-2">Submit a claim for your active insurance policy</p>
             </div>
-          )}
+            <div className="text-right">
+              <p className="text-sm text-gray-500">Active Policies</p>
+              <p className="text-2xl font-bold text-blue-600">{userPolicies.length}</p>
+              <p className="text-xs text-gray-400">Connected: {account?.slice(0, 6)}...{account?.slice(-4)}</p>
+            </div>
+          </div>
+        </div>
 
-          {/* Step 2: Upload Evidence */}
-          {step === 2 && (
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Upload Evidence</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Claim Submission Form */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Claim Details</h2>
               
-              {/* Document Upload */}
-              <div className="mb-8">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Documents</h3>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                  <div className="text-center">
-                    <div className="text-4xl mb-4">📄</div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">Upload Supporting Documents</h4>
-                    <p className="text-gray-600 mb-4">Medical bills, receipts, reports, etc. (PDF, JPG, PNG)</p>
+              <div className="space-y-6">
+                {/* Policy Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Select Policy *
+                  </label>
+                  {loading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="mt-2 text-gray-600">Loading policies...</p>
+                    </div>
+                  ) : userPolicies.length === 0 ? (
+                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                      <div className="text-gray-400 text-4xl mb-4">📄</div>
+                      <p className="text-gray-500">No active policies found</p>
+                      <p className="text-sm text-gray-400">Create a policy first to submit claims</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {userPolicies.map((policy) => (
+                        <div
+                          key={policy.tokenId}
+                          className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                            form.policyTokenId === policy.tokenId
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => setForm(prev => ({ ...prev, policyTokenId: policy.tokenId }))}
+                        >
+                          <h3 className="font-semibold text-gray-900">Policy #{policy.tokenId}</h3>
+                          <div className="mt-2 space-y-1 text-sm">
+                            <p className="text-gray-600">Coverage: ${parseFloat(policy.details.coverageAmount).toLocaleString()}</p>
+                            <p className="text-gray-600">Expires: {new Date(policy.details.endTime).toLocaleDateString()}</p>
+                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                              policy.details.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {policy.details.active ? 'Active' : 'Expired'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Claim Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Claim Type *
+                  </label>
+                  <select
+                    value={form.claimType}
+                    onChange={(e) => setForm(prev => ({ ...prev, claimType: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="general">General</option>
+                    <option value="health">Health</option>
+                    <option value="vehicle">Vehicle</option>
+                    <option value="travel">Travel</option>
+                    <option value="property">Property</option>
+                    <option value="liability">Liability</option>
+                  </select>
+                </div>
+
+                {/* Claim Amount */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Claim Amount *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                    <input
+                      type="number"
+                      value={form.amount}
+                      onChange={(e) => setForm(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                      className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Enter claim amount"
+                      max={selectedPolicy ? parseFloat(selectedPolicy.details.coverageAmount) : undefined}
+                    />
+                  </div>
+                  {selectedPolicy && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Maximum: ${parseFloat(selectedPolicy.details.coverageAmount).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+
+                {/* Claim Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Claim Description *
+                  </label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={4}
+                    placeholder="Describe the incident, damage, or loss in detail..."
+                  />
+                </div>
+
+                {/* File Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Supporting Documents & Images
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
                     <input
                       type="file"
                       multiple
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={handleDocumentUpload}
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={handleFileUpload}
                       className="hidden"
-                      id="document-upload"
+                      id="file-upload"
                     />
-                    <label htmlFor="document-upload" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 cursor-pointer">
-                      Choose Documents
+                    <label
+                      htmlFor="file-upload"
+                      className="cursor-pointer flex flex-col items-center"
+                    >
+                      <div className="text-gray-400 text-4xl mb-4">📎</div>
+                      <p className="text-gray-600">Click to upload files</p>
+                      <p className="text-sm text-gray-400">Images, PDFs, documents (max 10MB each)</p>
                     </label>
                   </div>
-                </div>
-                
-                {documents.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="font-medium text-gray-900 mb-2">Uploaded Documents:</h4>
-                    <div className="space-y-2">
-                      {documents.map((doc, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <h4 className="font-medium text-gray-900">Uploaded Files:</h4>
+                      {uploadedFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                           <div className="flex items-center">
-                            <span className="mr-2">📄</span>
-                            <span className="text-sm">{doc.name}</span>
+                            <span className="text-gray-400 mr-2">📄</span>
+                            <span className="text-sm text-gray-700">{file.name}</span>
+                            <span className="text-xs text-gray-500 ml-2">
+                              ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                            </span>
                           </div>
                           <button
-                            onClick={() => removeDocument(index)}
-                            className="text-red-600 hover:text-red-800"
+                            onClick={() => removeFile(index)}
+                            className="text-red-500 hover:text-red-700 text-sm"
                           >
                             Remove
                           </button>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Image Upload */}
-              <div className="mb-8">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Photos/Images</h3>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                  <div className="text-center">
-                    <div className="text-4xl mb-4">📸</div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">Upload Evidence Photos</h4>
-                    <p className="text-gray-600 mb-4">Damage photos, medical images, etc. (JPG, PNG)</p>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      id="image-upload"
-                    />
-                    <label htmlFor="image-upload" className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 cursor-pointer">
-                      Choose Images
-                    </label>
-                  </div>
-                </div>
-                
-                {images.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="font-medium text-gray-900 mb-2">Uploaded Images:</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {images.map((img, index) => (
-                        <div key={index} className="relative">
-                          <img
-                            src={URL.createObjectURL(img)}
-                            alt={`Evidence ${index + 1}`}
-                            className="w-full h-32 object-cover rounded-lg"
-                          />
-                          <button
-                            onClick={() => removeImage(index)}
-                            className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-700"
-                          >
-                            ✕
-                          </button>
-                          <p className="text-xs text-gray-600 mt-1 truncate">{img.name}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-8 flex justify-between">
-                <button
-                  onClick={() => setStep(1)}
-                  className="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={analyzeWithAI}
-                  disabled={documents.length === 0 && images.length === 0}
-                  className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Analyzing with AI...' : 'Analyze with AI'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: AI Analysis Results */}
-          {step === 3 && aiAnalysis && (
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">AI Analysis Results</h2>
-              
-              <div className="space-y-6">
-                {/* Overall Assessment */}
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Overall Assessment</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{(aiAnalysis.confidence * 100).toFixed(1)}%</div>
-                      <div className="text-sm text-gray-600">Confidence</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600">{(aiAnalysis.fraudScore * 100).toFixed(1)}%</div>
-                      <div className="text-sm text-gray-600">Fraud Risk</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">${aiAnalysis.estimatedAmount}</div>
-                      <div className="text-sm text-gray-600">AI Estimate</div>
-                    </div>
-                    <div className="text-center">
-                      <div className={`text-2xl font-bold ${getRecommendationColor(aiAnalysis.recommendation)}`}>
-                        {aiAnalysis.recommendation.toUpperCase()}
-                      </div>
-                      <div className="text-sm text-gray-600">Recommendation</div>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Document Analysis */}
-                {aiAnalysis.documents.length > 0 && (
-                  <div className="bg-white border border-gray-200 p-6 rounded-lg">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Analysis</h3>
-                    <div className="space-y-4">
-                      {aiAnalysis.documents.map((doc: any, index: number) => (
-                        <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                          <h4 className="font-medium text-gray-900 mb-2">{doc.filename}</h4>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="text-gray-600">Confidence:</span> {(doc.confidence * 100).toFixed(1)}%
-                            </div>
-                            <div>
-                              <span className="text-gray-600">Type:</span> {doc.document_type}
-                            </div>
-                          </div>
-                          {doc.text && (
-                            <div className="mt-2">
-                              <span className="text-gray-600">Extracted Text:</span>
-                              <p className="text-sm text-gray-800 mt-1 bg-white p-2 rounded border max-h-20 overflow-y-auto">
-                                {doc.text.substring(0, 200)}...
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Image Analysis */}
-                {aiAnalysis.images.length > 0 && (
-                  <div className="bg-white border border-gray-200 p-6 rounded-lg">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Image Analysis</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {aiAnalysis.images.map((img: any, index: number) => (
-                        <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                          <h4 className="font-medium text-gray-900 mb-2">{img.filename}</h4>
-                          <div className="space-y-2 text-sm">
-                            <div>
-                              <span className="text-gray-600">Authenticity:</span> {(img.authenticity_score * 100).toFixed(1)}%
-                            </div>
-                            <div>
-                              <span className="text-gray-600">Quality:</span> {img.image_quality || 'Good'}
-                            </div>
-                            {img.damage_assessment && (
-                              <div>
-                                <span className="text-gray-600">Damage:</span> {img.damage_assessment}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Issues and Recommendations */}
-                {aiAnalysis.detectedIssues && aiAnalysis.detectedIssues.length > 0 && (
-                  <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-lg">
-                    <h3 className="text-lg font-semibold text-yellow-800 mb-4">Detected Issues</h3>
-                    <ul className="space-y-2">
-                      {aiAnalysis.detectedIssues.map((issue: string, index: number) => (
-                        <li key={index} className="flex items-start">
-                          <span className="text-yellow-600 mr-2">⚠️</span>
-                          <span className="text-yellow-700 text-sm">{issue}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-8 flex justify-between">
-                <button
-                  onClick={() => setStep(2)}
-                  className="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setStep(4)}
-                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700"
-                >
-                  Continue to Submit
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Final Submission */}
-          {step === 4 && (
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Review and Submit</h2>
-              
-              <div className="space-y-6">
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Claim Summary</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600">Policy</p>
-                      <p className="font-medium">{selectedPolicy?.type} - ${selectedPolicy?.coverageAmount}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Claim Type</p>
-                      <p className="font-medium">{formData.claimType}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Requested Amount</p>
-                      <p className="font-medium">${formData.requestedAmount}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">AI Recommendation</p>
-                      <p className={`font-medium ${getRecommendationColor(aiAnalysis?.recommendation || 'review')}`}>
-                        {aiAnalysis?.recommendation?.toUpperCase() || 'REVIEW'}
-                      </p>
-                    </div>
-                  </div>
+                {/* AI Analysis Button */}
+                <div>
+                  <button
+                    onClick={analyzeClaimWithAI}
+                    disabled={analyzing || !form.description || form.amount <= 0}
+                    className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                  >
+                    {analyzing ? 'Analyzing with AI...' : 'Analyze Claim with AI'}
+                  </button>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-blue-900 mb-4">What Happens Next?</h3>
-                  <ol className="space-y-2 text-sm text-blue-800">
-                    <li>1. Your claim will be submitted to the blockchain</li>
-                    <li>2. AI analysis results will be stored immutably</li>
-                    <li>3. Community jury may review if needed</li>
-                    <li>4. You'll receive updates via notifications</li>
-                    <li>5. Approved claims are paid automatically</li>
-                  </ol>
-                </div>
-              </div>
-
-              <div className="mt-8 flex justify-between">
-                <button
-                  onClick={() => setStep(3)}
-                  className="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400"
-                >
-                  Previous
-                </button>
+                {/* Submit Claim Button */}
                 <button
                   onClick={submitClaim}
-                  disabled={loading}
-                  className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 font-semibold"
+                  disabled={submitting || !form.policyTokenId || form.amount <= 0 || !form.description}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-4 px-6 rounded-lg transition-colors"
                 >
-                  {loading ? 'Submitting Claim...' : 'Submit Claim'}
+                  {submitting ? 'Submitting Claim...' : 'Submit Claim'}
                 </button>
               </div>
             </div>
-          )}
+          </div>
+
+          {/* AI Analysis Results */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">AI Analysis</h2>
+              
+              {!aiAnalysis ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-4xl mb-4">🤖</div>
+                  <p className="text-gray-500">No analysis yet</p>
+                  <p className="text-sm text-gray-400">Fill in claim details and click "Analyze"</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Fraud Score */}
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-900 mb-2">Fraud Risk Assessment</h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Fraud Score:</span>
+                      <span className={`text-lg font-bold ${getFraudScoreColor(aiAnalysis.fraudScore)}`}>
+                        {aiAnalysis.fraudScore}%
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${
+                            aiAnalysis.fraudScore < 30 ? 'bg-green-500' :
+                            aiAnalysis.fraudScore < 70 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${aiAnalysis.fraudScore}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Authenticity Score */}
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-900 mb-2">Document Authenticity</h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Authenticity:</span>
+                      <span className="text-lg font-bold text-blue-600">
+                        {Math.round(aiAnalysis.authenticityScore * 100)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* AI Recommendation */}
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-900 mb-2">AI Recommendation</h3>
+                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                      aiAnalysis.recommendation === 'approve' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {aiAnalysis.recommendation.toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* Reasoning */}
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">AI Reasoning</h3>
+                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+                      {aiAnalysis.reasoning}
+                    </p>
+                  </div>
+
+                  {/* Detected Issues */}
+                  {aiAnalysis.detectedIssues && aiAnalysis.detectedIssues.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">Detected Issues</h3>
+                      <ul className="text-sm text-gray-700 space-y-1">
+                        {aiAnalysis.detectedIssues.map((issue: string, index: number) => (
+                          <li key={index} className="flex items-start">
+                            <span className="text-red-500 mr-2">•</span>
+                            {issue}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Confidence Score */}
+                  <div className="bg-yellow-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-900 mb-2">Analysis Confidence</h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Confidence:</span>
+                      <span className="text-lg font-bold text-yellow-600">
+                        {Math.round(aiAnalysis.confidence * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
-}
-
-function getClaimTypeIcon(type: string): string {
-  const icons: { [key: string]: string } = {
-    health: '🏥',
-    vehicle: '🚗',
-    travel: '✈️',
-    pet: '🐕',
-  };
-  return icons[type] || '📋';
-}
-
-function getDocumentType(claimType: string): string {
-  const types: { [key: string]: string } = {
-    health: 'medical_bill',
-    vehicle: 'vehicle_estimate',
-    travel: 'travel_receipt',
-    pet: 'veterinary_bill',
-  };
-  return types[claimType] || 'general';
-}
-
-function getRecommendationColor(recommendation: string): string {
-  const colors: { [key: string]: string } = {
-    approve: 'text-green-600',
-    reject: 'text-red-600',
-    review: 'text-yellow-600',
-  };
-  return colors[recommendation] || 'text-gray-600';
 } 

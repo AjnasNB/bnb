@@ -20,8 +20,25 @@ let UsersController = class UsersController {
     constructor(usersService) {
         this.usersService = usersService;
     }
-    async findAll(page = 1, limit = 10) {
-        return this.usersService.findAll({ page, limit });
+    async findAll(page = '1', limit = '10') {
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 10;
+        return this.usersService.findAll({ page: pageNum, limit: limitNum });
+    }
+    async findByWalletAddress(walletAddress) {
+        const user = await this.usersService.findByWalletAddress(walletAddress);
+        if (!user) {
+            return {
+                users: [],
+                total: 0,
+                isNewUser: true,
+            };
+        }
+        return {
+            users: [user],
+            total: 1,
+            isNewUser: false,
+        };
     }
     async findOne(id) {
         return this.usersService.findOne(id);
@@ -49,9 +66,17 @@ __decorate([
     __param(0, (0, common_1.Query)('page')),
     __param(1, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('wallet/:walletAddress'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get user by wallet address' }),
+    __param(0, (0, common_1.Param)('walletAddress')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "findByWalletAddress", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, swagger_1.ApiOperation)({ summary: 'Get user by ID' }),

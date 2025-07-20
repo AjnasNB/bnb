@@ -20,37 +20,73 @@ let ClaimsController = class ClaimsController {
     constructor(claimsService) {
         this.claimsService = claimsService;
     }
-    async findAll() {
-        return this.claimsService.findAll();
+    async findAll(status) {
+        return this.claimsService.findAll(status);
+    }
+    async getClaimsForVoting() {
+        return this.claimsService.getClaimsForVoting();
     }
     async findOne(id) {
         return this.claimsService.findOne(id);
     }
+    async getClaimWithVotingDetails(id) {
+        return this.claimsService.getClaimWithVotingDetails(id);
+    }
     async create(claimData) {
         return this.claimsService.create(claimData);
+    }
+    async voteOnClaim(voteData) {
+        return this.claimsService.voteOnClaim(voteData);
     }
 };
 exports.ClaimsController = ClaimsController;
 __decorate([
     (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all claims' }),
+    __param(0, (0, common_1.Query)('status')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], ClaimsController.prototype, "findAll", null);
 __decorate([
+    (0, common_1.Get)('voting'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get claims ready for community voting' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], ClaimsController.prototype, "getClaimsForVoting", null);
+__decorate([
     (0, common_1.Get)(':id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get claim by ID' }),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], ClaimsController.prototype, "findOne", null);
 __decorate([
+    (0, common_1.Get)(':id/voting-details'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get claim with voting details' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ClaimsController.prototype, "getClaimWithVotingDetails", null);
+__decorate([
     (0, common_1.Post)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Create new claim' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], ClaimsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('vote'),
+    (0, swagger_1.ApiOperation)({ summary: 'Vote on a claim' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], ClaimsController.prototype, "voteOnClaim", null);
 exports.ClaimsController = ClaimsController = __decorate([
     (0, swagger_1.ApiTags)('Claims'),
     (0, common_1.Controller)('claims'),

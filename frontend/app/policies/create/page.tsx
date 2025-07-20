@@ -1,534 +1,555 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useWeb3 } from '../../context/Web3Context';
 
 interface PolicyType {
   id: string;
   name: string;
-  basePremium: number;
   description: string;
+  minCoverage: number;
+  maxCoverage: number;
+  basePremium: number;
+  duration: number;
+  features: string[];
 }
 
-interface ContractAddresses {
-  stablecoin: string;
-  governanceToken: string;
-  policyNFT: string;
+interface PolicyForm {
+  type: string;
+  coverageAmount: number;
+  premiumAmount: number;
+  duration: number;
+  description: string;
+  terms: string;
+  holder: string;
 }
 
-export default function CreatePolicy() {
+export default function CreatePolicyPage() {
+  const { account, isConnected, connectWallet, chainId } = useWeb3();
+  const router = useRouter();
+  
   const [policyTypes, setPolicyTypes] = useState<PolicyType[]>([]);
-  const [contractAddresses, setContractAddresses] = useState<ContractAddresses | null>(null);
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState<PolicyForm>({
     type: '',
-    coverageAmount: '',
-    personalInfo: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      address: '',
-    },
-    specificDetails: {} as any,
+    coverageAmount: 0,
+    premiumAmount: 0,
+    duration: 365,
+    description: '',
+    terms: '',
+    holder: ''
   });
-  const [quote, setQuote] = useState<any>(null);
+  
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1);
+  const [creating, setCreating] = useState(false);
+  const [userPolicies, setUserPolicies] = useState<any[]>([]);
+  const [userBalance, setUserBalance] = useState('0');
+  const [premiumRate, setPremiumRate] = useState(0.03); // 3% default rate
 
   useEffect(() => {
-    fetchPolicyTypes();
-    fetchContractAddresses();
-  }, []);
+    if (isConnected && account) {
+      loadPolicyTypes();
+      loadUserData();
+      setForm(prev => ({ ...prev, holder: account }));
+    }
+  }, [isConnected, account]);
 
-  const fetchPolicyTypes = async () => {
+  const loadPolicyTypes = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/v1/policies/types/available');
-      if (!response.ok) throw new Error('Failed to fetch policy types');
+      const response = await fetch('/api/v1/policies/types');
       const data = await response.json();
       setPolicyTypes(data.types || []);
-    } catch (err) {
-      console.error('Error fetching policy types:', err);
-    }
-  };
-
-  const fetchContractAddresses = async () => {
-    try {
-      const response = await fetch('http://localhost:3000/api/v1/blockchain/contract-addresses');
-      if (!response.ok) throw new Error('Failed to fetch contract addresses');
-      const data = await response.json();
-      setContractAddresses(data);
-    } catch (err) {
-      console.error('Error fetching contract addresses:', err);
-    }
-  };
-
-  const getQuote = async () => {
-    if (!formData.type || !formData.coverageAmount) return;
-    
-    setLoading(true);
-    try {
-      const response = await fetch('http://localhost:3000/api/v1/policies/quote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: formData.type,
-          coverageAmount: formData.coverageAmount,
-          ...formData.specificDetails,
-        }),
-      });
-      const data = await response.json();
-      setQuote(data.quote);
     } catch (error) {
-      console.error('Failed to get quote:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error loading policy types:', error);
+      // Fallback to mock data if API fails
+      setPolicyTypes([
+        { 
+          id: 'health', 
+          name: 'Health Insurance', 
+          basePremium: 150, 
+          description: 'Comprehensive health coverage for medical expenses',
+          minCoverage: 1000,
+          maxCoverage: 100000,
+          premiumRate: 0.03,
+          duration: 365
+        },
+        { 
+          id: 'vehicle', 
+          name: 'Vehicle Insurance', 
+          basePremium: 200, 
+          description: 'Auto insurance coverage for accidents and damage',
+          minCoverage: 5000,
+          maxCoverage: 500000,
+          premiumRate: 0.025,
+          duration: 365
+        },
+        { 
+          id: 'travel', 
+          name: 'Travel Insurance', 
+          basePremium: 50, 
+          description: 'Travel protection for trips and vacations',
+          minCoverage: 500,
+          maxCoverage: 50000,
+          premiumRate: 0.04,
+          duration: 365
+        },
+        { 
+          id: 'pet', 
+          name: 'Pet Insurance', 
+          basePremium: 75, 
+          description: 'Pet health coverage for veterinary expenses',
+          minCoverage: 1000,
+          maxCoverage: 25000,
+          premiumRate: 0.035,
+          duration: 365
+        },
+        { 
+          id: 'home', 
+          name: 'Home Insurance', 
+          basePremium: 300, 
+          description: 'Home and property protection',
+          minCoverage: 10000,
+          maxCoverage: 1000000,
+          premiumRate: 0.02,
+          duration: 365
+        },
+        { 
+          id: 'life', 
+          name: 'Life Insurance', 
+          basePremium: 100, 
+          description: 'Life insurance coverage',
+          minCoverage: 10000,
+          maxCoverage: 1000000,
+          premiumRate: 0.015,
+          duration: 365
+        },
+      ]);
     }
   };
 
-  const createPolicy = async () => {
-    setLoading(true);
+  const loadUserData = async () => {
+    if (!account) return;
+    
     try {
-      const response = await fetch('http://localhost:3000/api/v1/policies', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          quote: quote,
-          contractAddress: contractAddresses?.policyNFT,
-        }),
-      });
-      
-      if (response.ok) {
-        alert('Policy created successfully! You can now connect your wallet to mint the NFT.');
-        window.location.href = '/dashboard';
-      } else {
-        throw new Error('Failed to create policy');
+      // Load user's existing policies
+      const policiesResponse = await fetch(`/api/v1/blockchain/policies/${account}`);
+      if (policiesResponse.ok) {
+        const policiesData = await policiesResponse.json();
+        setUserPolicies(policiesData.policies || []);
       }
     } catch (error) {
-      console.error('Failed to create policy:', error);
-      alert('Failed to create policy. Please try again.');
-    } finally {
-      setLoading(false);
+      console.error('Failed to load user policies:', error);
+      // Use fallback data
+      setUserPolicies([
+        {
+          tokenId: '1',
+          policyType: 'Health',
+          coverageAmount: '5000',
+          premiumAmount: '150',
+          startDate: '2024-01-15T00:00:00.000Z',
+          endDate: '2025-01-15T00:00:00.000Z',
+          isActive: true
+        }
+      ]);
     }
   };
 
-  const selectedPolicyType = policyTypes.find(type => type.id === formData.type);
+  const handleTypeChange = (typeId: string) => {
+    const selectedType = policyTypes.find(t => t.id === typeId);
+    if (selectedType) {
+      setForm(prev => ({
+        ...prev,
+        type: typeId,
+        coverageAmount: selectedType.minCoverage,
+        premiumAmount: selectedType.minCoverage * premiumRate,
+        duration: selectedType.duration
+      }));
+    }
+  };
+
+  const handleCoverageChange = (amount: number) => {
+    const premium = amount * premiumRate;
+    setForm(prev => ({
+      ...prev,
+      coverageAmount: amount,
+      premiumAmount: premium
+    }));
+  };
+
+  const handlePremiumRateChange = (rate: number) => {
+    setPremiumRate(rate);
+    const premium = form.coverageAmount * rate;
+    setForm(prev => ({
+      ...prev,
+      premiumAmount: premium
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!isConnected) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
+    if (!form.type || form.coverageAmount <= 0 || form.premiumAmount <= 0) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setCreating(true);
+      
+      const policyData = {
+        holder: form.holder,
+        coverageAmount: form.coverageAmount,
+        premiumAmount: form.premiumAmount,
+        duration: form.duration,
+        description: form.description,
+        terms: form.terms,
+        metadataHash: 'QmDefaultPolicyMetadata', // In real app, upload to IPFS
+      };
+
+      const response = await fetch('/api/v1/blockchain/policy/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(policyData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const premiumInStablecoin = result.policyData.premiumInStablecoin;
+        const needsApproval = result.policyData.needsApproval;
+        
+        if (needsApproval && result.transactions.approval) {
+          // Send approval transaction to MetaMask
+          try {
+            const approvalTx = result.transactions.approval;
+            const approvalResult = await window.ethereum.request({
+              method: 'eth_sendTransaction',
+              params: [{
+                to: approvalTx.to,
+                data: approvalTx.data,
+                from: account,
+                gas: approvalTx.estimatedGas,
+                value: approvalTx.value
+              }]
+            });
+            
+            alert(`Approval transaction sent! Hash: ${approvalResult}\n\nNow you can create the policy. Click OK to continue.`);
+            
+            // Wait a moment then send the policy creation transaction
+            setTimeout(async () => {
+              try {
+                const createTx = result.transactions.createPolicy;
+                const createResult = await window.ethereum.request({
+                  method: 'eth_sendTransaction',
+                  params: [{
+                    to: createTx.to,
+                    data: createTx.data,
+                    from: account,
+                    gas: createTx.estimatedGas,
+                    value: createTx.value
+                  }]
+                });
+                
+                alert(`Policy creation transaction sent! Hash: ${createResult}\n\nYour NFT policy is being created on the blockchain!`);
+                
+                // Reload user data to show new policy
+                await loadUserData();
+                setForm({
+                  type: '',
+                  coverageAmount: 0,
+                  premiumAmount: 0,
+                  duration: 365,
+                  description: '',
+                  terms: '',
+                  holder: account || ''
+                });
+              } catch (error) {
+                alert('Failed to create policy: ' + error.message);
+              }
+            }, 2000);
+            
+          } catch (error) {
+            alert('Failed to approve contract: ' + error.message);
+          }
+        } else {
+          // Only policy creation needed
+          try {
+            const createTx = result.transactions.createPolicy;
+            const createResult = await window.ethereum.request({
+              method: 'eth_sendTransaction',
+              params: [{
+                to: createTx.to,
+                data: createTx.data,
+                from: account,
+                gas: createTx.estimatedGas,
+                value: createTx.value
+              }]
+            });
+            
+            alert(`Policy creation transaction sent! Hash: ${createResult}\n\nYour NFT policy is being created on the blockchain!`);
+            
+            // Reload user data to show new policy
+            await loadUserData();
+            setForm({
+              type: '',
+              coverageAmount: 0,
+              premiumAmount: 0,
+              duration: 365,
+              description: '',
+              terms: '',
+              holder: account || ''
+            });
+          } catch (error) {
+            alert('Failed to create policy: ' + error.message);
+          }
+        }
+      } else {
+        alert('Failed to create policy: ' + (result.error || result.message));
+      }
+    } catch (error) {
+      console.error('Error creating policy:', error);
+      alert('Error creating policy. Please try again.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Create Insurance Policy</h1>
+            <p className="text-gray-600 mb-8">Connect your wallet to create a new insurance policy</p>
+            <button
+              onClick={connectWallet}
+              className="metamask-btn"
+            >
+              Connect MetaMask
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12">
+      <div className="max-w-4xl mx-auto px-4">
         <div className="mb-8">
-          <Link href="/dashboard" className="text-blue-600 hover:text-blue-800 mb-4 inline-block">
-            ← Back to Dashboard
-          </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Create New Policy</h1>
-          <p className="text-gray-600">Secure your future with blockchain-powered insurance</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Insurance Policy</h1>
+          <p className="text-gray-600">Create a new NFT-based insurance policy on the blockchain</p>
         </div>
 
-        {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            {[1, 2, 3, 4].map((stepNumber) => (
-              <div key={stepNumber} className={`flex items-center ${stepNumber < 4 ? 'flex-1' : ''}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step >= stepNumber ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {stepNumber}
-                </div>
-                {stepNumber < 4 && (
-                  <div className={`flex-1 h-1 mx-4 ${
-                    step > stepNumber ? 'bg-blue-600' : 'bg-gray-200'
-                  }`} />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between mt-2 text-sm text-gray-600">
-            <span>Policy Type</span>
-            <span>Coverage Details</span>
-            <span>Personal Info</span>
-            <span>Review & Create</span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          {/* Step 1: Policy Type Selection */}
-          {step === 1 && (
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Select Policy Type</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {policyTypes.map((type) => (
-                  <div
-                    key={type.id}
-                    className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${
-                      formData.type === type.id
-                        ? 'border-blue-600 bg-blue-50'
-                        : 'border-gray-200 hover:border-blue-300'
-                    }`}
-                    onClick={() => setFormData(prev => ({ ...prev, type: type.id }))}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Policy Creation Form */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Policy Details</h2>
+              
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Policy Type Selection */}
+                <div className="form-group">
+                  <label className="form-label">Policy Type *</label>
+                  <select
+                    className="form-input"
+                    value={form.type}
+                    onChange={(e) => handleTypeChange(e.target.value)}
+                    required
                   >
-                    <div className="text-2xl mb-3">{getPolicyIcon(type.id)}</div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{type.name}</h3>
-                    <p className="text-gray-600 mb-3">{type.description}</p>
-                    <p className="text-sm text-gray-500">Base Premium: ${type.basePremium}/month</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-8 flex justify-end">
-                <button
-                  onClick={() => setStep(2)}
-                  disabled={!formData.type}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+                    <option value="">Select a policy type</option>
+                    {policyTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.name} - ${type.minCoverage.toLocaleString()} to ${type.maxCoverage.toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-          {/* Step 2: Coverage Details */}
-          {step === 2 && (
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Coverage Details</h2>
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Coverage Amount ($)
-                  </label>
+                {/* Coverage Amount */}
+                <div className="form-group">
+                  <label className="form-label">Coverage Amount (USD) *</label>
                   <input
                     type="number"
-                    value={formData.coverageAmount}
-                    onChange={(e) => setFormData(prev => ({ ...prev, coverageAmount: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter coverage amount"
-                    min="1000"
-                    max="1000000"
+                    className="form-input"
+                    value={form.coverageAmount}
+                    onChange={(e) => handleCoverageChange(Number(e.target.value))}
+                    min={policyTypes.find(t => t.id === form.type)?.minCoverage || 0}
+                    max={policyTypes.find(t => t.id === form.type)?.maxCoverage || 1000000}
+                    step={100}
+                    required
                   />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Min: ${policyTypes.find(t => t.id === form.type)?.minCoverage.toLocaleString() || 0} | 
+                    Max: ${policyTypes.find(t => t.id === form.type)?.maxCoverage.toLocaleString() || 1000000}
+                  </p>
                 </div>
 
-                {/* Policy-specific fields */}
-                {formData.type === 'health' && (
-                  <HealthSpecificFields 
-                    data={formData.specificDetails}
-                    onChange={(data) => setFormData(prev => ({ ...prev, specificDetails: data }))}
+                {/* Premium Rate */}
+                <div className="form-group">
+                  <label className="form-label">Premium Rate (%)</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={premiumRate * 100}
+                    onChange={(e) => handlePremiumRateChange(Number(e.target.value) / 100)}
+                    min={0.1}
+                    max={10}
+                    step={0.1}
                   />
-                )}
-                {formData.type === 'vehicle' && (
-                  <VehicleSpecificFields 
-                    data={formData.specificDetails}
-                    onChange={(data) => setFormData(prev => ({ ...prev, specificDetails: data }))}
-                  />
-                )}
-                {formData.type === 'travel' && (
-                  <TravelSpecificFields 
-                    data={formData.specificDetails}
-                    onChange={(data) => setFormData(prev => ({ ...prev, specificDetails: data }))}
-                  />
-                )}
+                  <p className="text-sm text-gray-500 mt-1">
+                    This determines your premium amount based on coverage
+                  </p>
+                </div>
 
-                {/* Quote Display */}
-                {formData.coverageAmount && (
-                  <div className="mt-6">
-                    <button
-                      onClick={getQuote}
-                      disabled={loading}
-                      className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
-                      {loading ? 'Getting Quote...' : 'Get Quote'}
-                    </button>
-                    {quote && (
-                      <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <h4 className="font-semibold text-green-900">Quote Details</h4>
-                        <p className="text-green-700">Monthly Premium: ${quote.premiumAmount}</p>
-                        <p className="text-green-700">Coverage: ${quote.coverageAmount}</p>
-                        <p className="text-sm text-green-600">Valid until: {new Date(quote.validUntil).toLocaleDateString()}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="mt-8 flex justify-between">
-                <button
-                  onClick={() => setStep(1)}
-                  className="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setStep(3)}
-                  disabled={!formData.coverageAmount || !quote}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+                {/* Premium Amount (Calculated) */}
+                <div className="form-group">
+                  <label className="form-label">Premium Amount (USD)</label>
+                  <input
+                    type="number"
+                    className="form-input bg-gray-50"
+                    value={form.premiumAmount.toFixed(2)}
+                    readOnly
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Calculated: ${form.coverageAmount.toLocaleString()} × {(premiumRate * 100).toFixed(1)}% = ${form.premiumAmount.toFixed(2)}
+                  </p>
+                </div>
 
-          {/* Step 3: Personal Information */}
-          {step === 3 && (
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Personal Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                {/* Stablecoin Premium Amount */}
+                <div className="form-group">
+                  <label className="form-label">Premium Amount (Stablecoin)</label>
                   <input
                     type="text"
-                    value={formData.personalInfo.firstName}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      personalInfo: { ...prev.personalInfo, firstName: e.target.value }
-                    }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    className="form-input bg-gray-50"
+                    value={form.premiumAmount.toFixed(2)}
+                    readOnly
                   />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Premium paid in ChainSure stablecoin tokens (csINR)
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                  <input
-                    type="text"
-                    value={formData.personalInfo.lastName}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      personalInfo: { ...prev.personalInfo, lastName: e.target.value }
-                    }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
+
+                {/* Duration */}
+                <div className="form-group">
+                  <label className="form-label">Policy Duration</label>
+                  <select
+                    className="form-input"
+                    value={form.duration}
+                    onChange={(e) => setForm(prev => ({ ...prev, duration: Number(e.target.value) }))}
+                  >
+                    <option value={365}>1 Year</option>
+                    <option value={730}>2 Years</option>
+                    <option value={1095}>3 Years</option>
+                    <option value={1460}>4 Years</option>
+                    <option value={1825}>5 Years</option>
+                  </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={formData.personalInfo.email}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      personalInfo: { ...prev.personalInfo, email: e.target.value }
-                    }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                  <input
-                    type="tel"
-                    value={formData.personalInfo.phone}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      personalInfo: { ...prev.personalInfo, phone: e.target.value }
-                    }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+
+                {/* Description */}
+                <div className="form-group">
+                  <label className="form-label">Policy Description</label>
                   <textarea
-                    value={formData.personalInfo.address}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      personalInfo: { ...prev.personalInfo, address: e.target.value }
-                    }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    className="form-textarea"
+                    value={form.description}
+                    onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Describe what this policy covers..."
                     rows={3}
                   />
                 </div>
-              </div>
-              <div className="mt-8 flex justify-between">
-                <button
-                  onClick={() => setStep(2)}
-                  className="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setStep(4)}
-                  disabled={!formData.personalInfo.firstName || !formData.personalInfo.lastName || !formData.personalInfo.email}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
 
-          {/* Step 4: Review and Create */}
-          {step === 4 && (
-            <div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Review Your Policy</h2>
-              <div className="space-y-6">
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Policy Summary</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600">Policy Type</p>
-                      <p className="font-medium">{selectedPolicyType?.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Coverage Amount</p>
-                      <p className="font-medium">${formData.coverageAmount}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Monthly Premium</p>
-                      <p className="font-medium text-green-600">${quote?.premiumAmount}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Policy Holder</p>
-                      <p className="font-medium">{formData.personalInfo.firstName} {formData.personalInfo.lastName}</p>
-                    </div>
-                  </div>
+                {/* Terms */}
+                <div className="form-group">
+                  <label className="form-label">Terms & Conditions</label>
+                  <textarea
+                    className="form-textarea"
+                    value={form.terms}
+                    onChange={(e) => setForm(prev => ({ ...prev, terms: e.target.value }))}
+                    placeholder="Enter policy terms and conditions..."
+                    rows={4}
+                  />
                 </div>
 
-                {contractAddresses && (
-                  <div className="bg-blue-50 p-6 rounded-lg">
-                    <h3 className="text-lg font-semibold text-blue-900 mb-4">Blockchain Details</h3>
-                    <div className="space-y-2 text-sm">
-                      <p><span className="text-blue-700">Network:</span> BSC Testnet</p>
-                      <p><span className="text-blue-700">Policy NFT Contract:</span> {contractAddresses.policyNFT}</p>
-                      <p><span className="text-blue-700">Stablecoin Contract:</span> {contractAddresses.stablecoin}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                  <h4 className="font-medium text-yellow-800 mb-2">Next Steps</h4>
-                  <ol className="text-sm text-yellow-700 space-y-1">
-                    <li>1. Click "Create Policy" to submit your application</li>
-                    <li>2. Connect your wallet to mint the policy NFT</li>
-                    <li>3. Pay the first premium using stablecoins</li>
-                    <li>4. Your policy will be active immediately</li>
-                  </ol>
-                </div>
-              </div>
-
-              <div className="mt-8 flex justify-between">
+                {/* Submit Button */}
                 <button
-                  onClick={() => setStep(3)}
-                  className="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400"
+                  type="submit"
+                  className="btn-primary w-full"
+                  disabled={creating || !form.type || form.coverageAmount <= 0}
                 >
-                  Previous
+                  {creating ? (
+                    <>
+                      <div className="spinner"></div>
+                      Creating Policy...
+                    </>
+                  ) : (
+                    'Create Policy NFT'
+                  )}
                 </button>
-                <button
-                  onClick={createPolicy}
-                  disabled={loading}
-                  className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 font-semibold"
-                >
-                  {loading ? 'Creating Policy...' : 'Create Policy'}
-                </button>
-              </div>
+              </form>
             </div>
-          )}
+          </div>
+
+          {/* User's Existing Policies */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Your Policies</h2>
+              
+              <div className="mb-4">
+                <p className="text-sm text-gray-600">Wallet Balance</p>
+                <p className="text-lg font-semibold text-green-600">
+                  ${parseFloat(userBalance).toFixed(2)} USDC
+                </p>
+              </div>
+
+              {userPolicies.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No policies found</p>
+              ) : (
+                <div className="space-y-4">
+                  {userPolicies.map((policy) => (
+                    <div key={policy.tokenId} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-gray-900">Policy #{policy.tokenId}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          policy.details.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {policy.details.active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-gray-500">Coverage</p>
+                          <p className="font-semibold">${parseFloat(policy.details.coverageAmount).toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Premium</p>
+                          <p className="font-semibold">${parseFloat(policy.details.premium).toFixed(2)}</p>
+                        </div>
+                      </div>
+                      
+                      <a
+                        href={policy.explorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:text-blue-800 mt-2 inline-block"
+                      >
+                        View on Explorer →
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
-}
-
-// Policy-specific components
-function HealthSpecificFields({ data, onChange }: any) {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium text-gray-900">Health Information</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Age</label>
-          <input
-            type="number"
-            value={data.age || ''}
-            onChange={(e) => onChange({ ...data, age: parseInt(e.target.value) })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Pre-existing Conditions</label>
-          <select
-            value={data.preExisting || 'none'}
-            onChange={(e) => onChange({ ...data, preExisting: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="none">None</option>
-            <option value="diabetes">Diabetes</option>
-            <option value="hypertension">Hypertension</option>
-            <option value="heart_disease">Heart Disease</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function VehicleSpecificFields({ data, onChange }: any) {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium text-gray-900">Vehicle Information</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Make</label>
-          <input
-            type="text"
-            value={data.make || ''}
-            onChange={(e) => onChange({ ...data, make: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
-          <input
-            type="text"
-            value={data.model || ''}
-            onChange={(e) => onChange({ ...data, model: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
-          <input
-            type="number"
-            value={data.year || ''}
-            onChange={(e) => onChange({ ...data, year: parseInt(e.target.value) })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TravelSpecificFields({ data, onChange }: any) {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium text-gray-900">Travel Information</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Destination</label>
-          <input
-            type="text"
-            value={data.destination || ''}
-            onChange={(e) => onChange({ ...data, destination: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Duration (days)</label>
-          <input
-            type="number"
-            value={data.duration || ''}
-            onChange={(e) => onChange({ ...data, duration: parseInt(e.target.value) })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function getPolicyIcon(type: string): string {
-  const icons: { [key: string]: string } = {
-    health: '🏥',
-    vehicle: '🚗',
-    travel: '✈️',
-    pet: '🐕',
-    product_warranty: '📱',
-    agricultural: '🌾'
-  };
-  return icons[type] || '📋';
 } 

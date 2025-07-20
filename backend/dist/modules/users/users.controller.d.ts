@@ -2,51 +2,33 @@ import { UsersService } from './users.service';
 export declare class UsersController {
     private readonly usersService;
     constructor(usersService: UsersService);
-    findAll(page?: number, limit?: number): Promise<{
-        users: {
-            id: string;
-            email: string;
-            firstName: string;
-            lastName: string;
-            walletAddress: string;
-            isActive: boolean;
-            isVerified: boolean;
-            createdAt: string;
-        }[];
+    findAll(page?: string, limit?: string): Promise<{
+        users: import("./entities/user.entity").User[];
         total: number;
         page: number;
         limit: number;
         totalPages: number;
     }>;
-    findOne(id: string): Promise<{
-        id: string;
-        email: string;
-        firstName: string;
-        lastName: string;
-        walletAddress: string;
-        isActive: boolean;
-        isVerified: boolean;
-        avatar: any;
-        phone: any;
-        preferences: {
-            notifications: {
-                email: boolean;
-                push: boolean;
-            };
-            currency: string;
-            language: string;
-        };
-        createdAt: string;
+    findByWalletAddress(walletAddress: string): Promise<{
+        users: import("./entities/user.entity").User[];
+        total: number;
+        isNewUser: boolean;
     }>;
+    findOne(id: string): Promise<import("./entities/user.entity").User>;
     create(userData: any): Promise<{
         success: boolean;
-        user: any;
+        user: import("./entities/user.entity").User;
         message: string;
+        isNewUser: boolean;
+    } | {
+        success: boolean;
+        user: import("./entities/user.entity").User[];
+        message: string;
+        isNewUser: boolean;
     }>;
     update(id: string, userData: any): Promise<{
         success: boolean;
-        id: string;
-        updatedData: any;
+        user: any;
         message: string;
     }>;
     remove(id: string): Promise<{
@@ -56,30 +38,12 @@ export declare class UsersController {
     }>;
     getUserPolicies(id: string): Promise<{
         userId: string;
-        policies: {
-            id: string;
-            type: string;
-            status: string;
-            coverageAmount: string;
-            premiumAmount: string;
-            startDate: string;
-            endDate: string;
-            nftTokenId: string;
-        }[];
+        policies: any[];
         total: number;
     }>;
     getUserClaims(id: string): Promise<{
         userId: string;
-        claims: {
-            id: string;
-            policyId: string;
-            type: string;
-            status: string;
-            requestedAmount: string;
-            approvedAmount: string;
-            description: string;
-            createdAt: string;
-        }[];
+        claims: any[];
         total: number;
     }>;
 }
