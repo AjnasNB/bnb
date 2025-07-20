@@ -9,9 +9,9 @@ export declare class GovernanceService {
     private readonly logger;
     constructor(proposalRepository: Repository<Proposal>, voteRepository: Repository<Vote>, contractService: ContractService);
     getProposals(): Promise<{
-        proposals: any[];
+        proposals: Proposal[];
         total: number;
-        contractAddress: string;
+        contractAddress: any;
         message: string;
         error?: undefined;
     } | {
@@ -24,19 +24,7 @@ export declare class GovernanceService {
     createClaimVotingProposal(proposalData: any): Promise<{
         success: boolean;
         proposal: Proposal;
-        blockchainResult: {
-            success: boolean;
-            message: string;
-            proposalData: any;
-            transaction: {
-                to: string;
-                data: string;
-                estimatedGas: string;
-                value: string;
-            };
-            contractAddress: string;
-            note: string;
-        };
+        blockchainResult: any;
         message: string;
     }>;
     voteOnProposal(proposalId: string, voteData: any): Promise<{
@@ -45,16 +33,22 @@ export declare class GovernanceService {
         proposal: Proposal;
         blockchainResult: {
             success: boolean;
-            message: string;
-            voteData: any;
             transaction: {
                 to: string;
                 data: string;
-                estimatedGas: string;
                 value: string;
+                estimatedGas: string;
+                proposalId: any;
+                support: any;
+                reason: any;
             };
-            contractAddress: string;
-            note: string;
+            message: string;
+            error?: undefined;
+        } | {
+            success: boolean;
+            error: any;
+            transaction?: undefined;
+            message?: undefined;
         };
         message: string;
     }>;
@@ -89,4 +83,5 @@ export declare class GovernanceService {
         timestamp: string;
         proposalsCount?: undefined;
     }>;
+    private setupVotingResultProcessing;
 }

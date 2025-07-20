@@ -2,7 +2,7 @@
   "blockchain": {
     "network": "bsc_testnet",
     "chainId": 97,
-    "rpcUrl": "https://data-seed-prebsc-1-s1.binance.org:8545/",
+    "rpcUrl": "https://bsc-testnet.public.blastapi.io",
     "contracts": {
       "stablecoin": "0x644Ed1D005Eadbaa4D4e05484AEa8e52A4DB76c8",
       "governanceToken": "0xD0aa884859B93aFF4324B909fAeC619096f0Cc05",

@@ -88,6 +88,12 @@ export class PoliciesController {
     return this.policiesService.findAll({ page, limit });
   }
 
+  @Get('user/:userId')
+  @ApiOperation({ summary: 'Get policies for specific user' })
+  async findUserPolicies(@Param('userId') userId: string) {
+    return this.policiesService.findUserPolicies(userId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get policy by ID' })
   async findOne(@Param('id') id: string) {

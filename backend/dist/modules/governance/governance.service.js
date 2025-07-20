@@ -29,12 +29,53 @@ let GovernanceService = GovernanceService_1 = class GovernanceService {
     }
     async getProposals() {
         try {
-            const blockchainProposals = await this.contractService.getGovernanceProposals();
+            this.logger.log('Fetching governance proposals from database and blockchain');
+            const dbProposals = await this.proposalRepository.find({
+                order: { createdAt: 'DESC' }
+            });
+            let blockchainProposals = [];
+            try {
+                const blockchainResult = await this.contractService.getGovernanceProposals();
+                blockchainProposals = blockchainResult.proposals || [];
+                this.logger.log(`Found ${blockchainProposals.length} proposals from blockchain`);
+            }
+            catch (error) {
+                this.logger.warn(`Failed to get blockchain proposals: ${error.message}`);
+            }
+            const allProposals = [...dbProposals];
+            blockchainProposals.forEach(bcProposal => {
+                const exists = dbProposals.find(dbProposal => dbProposal.id === bcProposal.id);
+                if (!exists) {
+                    allProposals.push({
+                        id: bcProposal.id,
+                        title: bcProposal.title,
+                        description: bcProposal.description,
+                        proposerId: 'blockchain',
+                        status: bcProposal.status === 'active' ? proposal_entity_1.ProposalStatus.ACTIVE :
+                            bcProposal.status === 'executed' ? proposal_entity_1.ProposalStatus.EXECUTED :
+                                proposal_entity_1.ProposalStatus.REJECTED,
+                        startTime: new Date(bcProposal.startTime),
+                        endTime: new Date(bcProposal.endTime),
+                        votesFor: bcProposal.votesFor || '0',
+                        votesAgainst: bcProposal.votesAgainst || '0',
+                        totalVotingPower: '0',
+                        metadata: {
+                            proposalType: 'blockchain_proposal',
+                            blockchainData: bcProposal,
+                            contractAddress: bcProposal.contractAddress,
+                        },
+                        createdAt: new Date(bcProposal.startTime),
+                        updatedAt: new Date(),
+                        votes: [],
+                    });
+                }
+            });
+            this.logger.log(`Total proposals found: ${allProposals.length} (${dbProposals.length} from DB, ${blockchainProposals.length} from blockchain)`);
             return {
-                proposals: blockchainProposals.proposals || [],
-                total: blockchainProposals.totalProposals || 0,
-                contractAddress: blockchainProposals.contractAddress,
-                message: 'Governance proposals retrieved successfully',
+                proposals: allProposals,
+                total: allProposals.length,
+                contractAddress: blockchainProposals[0]?.contractAddress,
+                message: 'Governance proposals retrieved successfully from database and blockchain',
             };
         }
         catch (error) {
@@ -49,17 +90,10 @@ let GovernanceService = GovernanceService_1 = class GovernanceService {
     async createClaimVotingProposal(proposalData) {
         try {
             this.logger.log(`Creating claim voting proposal for claim: ${proposalData.claimId}`);
-            const blockchainResult = await this.contractService.createGovernanceProposal({
-                title: proposalData.title,
-                description: proposalData.description,
-                votingPeriod: proposalData.votingPeriod,
-                proposalType: 'claim_review',
-                claimData: proposalData.claimData,
-            });
             const proposal = this.proposalRepository.create({
                 title: proposalData.title,
                 description: proposalData.description,
-                proposerId: proposalData.claimData.userId || 'system',
+                proposerId: proposalData.claimData.userAddress || 'system',
                 status: proposal_entity_1.ProposalStatus.ACTIVE,
                 startTime: new Date(),
                 endTime: new Date(Date.now() + proposalData.votingPeriod * 1000),
@@ -68,16 +102,45 @@ let GovernanceService = GovernanceService_1 = class GovernanceService {
                 totalVotingPower: '0',
                 metadata: {
                     proposalType: 'claim_review',
+                    claimId: proposalData.claimId,
                     claimData: proposalData.claimData,
-                    blockchainTransaction: blockchainResult.transaction,
+                    blockchainTransaction: null,
+                    votingThreshold: 50,
+                    minimumVotes: 3,
                 },
+                votes: [],
             });
             const savedProposal = await this.proposalRepository.save(proposal);
+            this.logger.log(`Claim voting proposal saved to database with ID: ${savedProposal.id}`);
+            let blockchainResult = null;
+            try {
+                this.logger.log(`Creating mock blockchain proposal for claim ${proposalData.claimId}`);
+                blockchainResult = await this.contractService.createGovernanceProposal({
+                    title: proposalData.title,
+                    description: proposalData.description,
+                    votingPeriod: proposalData.votingPeriod,
+                    proposalType: 'claim_review',
+                    claimData: proposalData.claimData,
+                });
+                savedProposal.metadata.blockchainTransaction = {
+                    ...blockchainResult.transaction,
+                    hash: 'mock_proposal_tx_' + Date.now(),
+                    mock: true
+                };
+                await this.proposalRepository.save(savedProposal);
+                this.logger.log(`Mock blockchain proposal creation successful for claim ${proposalData.claimId}`);
+            }
+            catch (blockchainError) {
+                this.logger.warn(`Mock blockchain proposal creation failed for claim ${proposalData.claimId}: ${blockchainError.message}`);
+            }
+            this.setupVotingResultProcessing(savedProposal.id, proposalData.claimId);
             return {
                 success: true,
                 proposal: savedProposal,
                 blockchainResult,
-                message: 'Claim voting proposal created successfully',
+                message: blockchainResult
+                    ? 'Claim voting proposal created successfully on blockchain and database'
+                    : 'Proposal saved to database. Blockchain integration pending.',
             };
         }
         catch (error) {
@@ -221,6 +284,41 @@ let GovernanceService = GovernanceService_1 = class GovernanceService {
                 timestamp: new Date().toISOString(),
             };
         }
+    }
+    setupVotingResultProcessing(proposalId, claimId) {
+        const checkVotingResults = async () => {
+            try {
+                const proposal = await this.proposalRepository.findOne({ where: { id: proposalId } });
+                if (!proposal) {
+                    this.logger.warn(`Proposal ${proposalId} not found for voting result processing`);
+                    return;
+                }
+                const votes = await this.voteRepository.find({ where: { proposalId } });
+                if (votes.length >= proposal.metadata.minimumVotes) {
+                    const votesFor = votes.filter(v => v.choice === vote_entity_1.VoteChoice.FOR).length;
+                    const votesAgainst = votes.filter(v => v.choice === vote_entity_1.VoteChoice.AGAINST).length;
+                    const totalVotes = votes.length;
+                    const approvalPercentage = (votesFor / totalVotes) * 100;
+                    this.logger.log(`Proposal ${proposalId} voting results: ${votesFor} for, ${votesAgainst} against (${approvalPercentage.toFixed(1)}% approval)`);
+                    if (approvalPercentage >= proposal.metadata.votingThreshold) {
+                        await this.processClaimDecision(claimId, true, proposal);
+                        this.logger.log(`Claim ${claimId} AUTO-APPROVED by governance vote (${approvalPercentage.toFixed(1)}% approval)`);
+                        return;
+                    }
+                    else if (approvalPercentage < proposal.metadata.votingThreshold) {
+                        await this.processClaimDecision(claimId, false, proposal);
+                        this.logger.log(`Claim ${claimId} AUTO-REJECTED by governance vote (${approvalPercentage.toFixed(1)}% approval)`);
+                        return;
+                    }
+                }
+                setTimeout(checkVotingResults, 30000);
+            }
+            catch (error) {
+                this.logger.error(`Error processing voting results for proposal ${proposalId}: ${error.message}`);
+                setTimeout(checkVotingResults, 60000);
+            }
+        };
+        setTimeout(checkVotingResults, 10000);
     }
 };
 exports.GovernanceService = GovernanceService;

@@ -24,6 +24,13 @@ export declare class PoliciesService {
         totalPages: number;
         error: any;
     }>;
+    findUserPolicies(userId: string): Promise<{
+        error: any;
+        policies: any[];
+        total: number;
+        source: string;
+        userAddress: string;
+    }>;
     findOne(id: string): Promise<Policy | {
         id: string;
         userId: string;

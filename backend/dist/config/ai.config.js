@@ -4,7 +4,7 @@ exports.aiConfig = void 0;
 const config_1 = require("@nestjs/config");
 exports.aiConfig = (0, config_1.registerAs)('ai', () => ({
     endpoint: process.env.AI_SERVICE_URL || 'http://localhost:8001',
-    apiKey: process.env.AI_SERVICE_API_KEY || 'chainsure_backend_key_2024',
+    apiKey: process.env.AI_SERVICE_API_KEY || 'chainsure_dev_key_2024',
     timeout: parseInt(process.env.AI_SERVICE_TIMEOUT, 10) || 30000,
     maxRetries: parseInt(process.env.AI_SERVICE_MAX_RETRIES, 10) || 3,
     retryDelay: parseInt(process.env.AI_SERVICE_RETRY_DELAY, 10) || 1000,

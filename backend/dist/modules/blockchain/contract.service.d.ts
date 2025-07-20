@@ -5,6 +5,7 @@ export declare class ContractService {
     private contracts;
     constructor(blockchainService: BlockchainService);
     private initializeContracts;
+    private initializeFallbackContracts;
     getContractAddresses(): {
         stablecoin: string;
         governanceToken: string;
@@ -26,12 +27,7 @@ export declare class ContractService {
             success: boolean;
             policies: any[];
             totalPolicies: number;
-            note: string;
-        } | {
-            success: boolean;
-            policies: any[];
-            totalPolicies: number;
-            note?: undefined;
+            message: string;
         };
         timestamp: string;
     }>;
@@ -65,15 +61,84 @@ export declare class ContractService {
     submitClaim(claimData: any): Promise<{
         success: boolean;
         message: string;
-        claimData: any;
-        transaction: {
-            to: string;
-            data: string;
-            estimatedGas: string;
-            value: string;
+        claimData: {
+            claimId: string;
+            policyId: any;
+            claimType: any;
+            amount: any;
+            description: any;
+            evidenceHashes: any;
+            userAddress: any;
+            submittedAt: string;
         };
-        contractAddress: string;
+        blockchainResult: {
+            contractAddresses: {
+                claimsEngine: string;
+                governance: string;
+            };
+            transactions: {
+                claimSubmission: {
+                    to: string;
+                    data: string;
+                    value: string;
+                    estimatedGas: string;
+                };
+                governanceProposal: {
+                    to: string;
+                    data: string;
+                    value: string;
+                    estimatedGas: string;
+                };
+            };
+        };
+        votingProposal: {
+            title: string;
+            description: string;
+            votingPeriod: number;
+            claimId: string;
+        };
+        nextSteps: string[];
+        error?: undefined;
+        note?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        error: any;
+        claimData: {
+            claimId: string;
+            policyId: any;
+            claimType: any;
+            amount: any;
+            description: any;
+            evidenceHashes: any;
+            userAddress: any;
+            submittedAt: string;
+        };
+        blockchainResult: {
+            contractAddresses: {
+                claimsEngine: string;
+                governance: string;
+            };
+            transactions: {
+                claimSubmission: {
+                    to: string;
+                    data: string;
+                    value: string;
+                    estimatedGas: string;
+                    error: string;
+                };
+                governanceProposal: {
+                    to: string;
+                    data: string;
+                    value: string;
+                    estimatedGas: string;
+                    error: string;
+                };
+            };
+        };
         note: string;
+        votingProposal?: undefined;
+        nextSteps?: undefined;
     }>;
     stakeTokens(amount: string, userAddress: string): Promise<{
         success: boolean;
@@ -122,13 +187,13 @@ export declare class ContractService {
         success: boolean;
         policies: any[];
         totalPolicies: number;
-        note: string;
-    } | {
-        success: boolean;
-        policies: any[];
-        totalPolicies: number;
-        note?: undefined;
+        message: string;
     }>;
+    private getPolicyTypeName;
+    private getCoverageAmount;
+    private getPremiumAmount;
+    private getCreationDate;
+    private getExpiryDate;
     getClaimDetails(claimId: string): Promise<{
         claimId: string;
         policyId: any;
@@ -145,11 +210,48 @@ export declare class ContractService {
         explorerUrl: string;
     }>;
     private getClaimStatus;
-    getGovernanceProposals(): Promise<{
-        proposals: any[];
-        contractAddress: string;
-        totalProposals: number;
-    }>;
+    getGovernanceProposals(): Promise<({
+        id: string;
+        title: string;
+        description: string;
+        status: string;
+        votesFor: string;
+        votesAgainst: string;
+        startTime: string;
+        endTime: string;
+        executed: boolean;
+        metadata: {
+            proposalType: string;
+            claimData: {
+                claimId: string;
+                policyTokenId: string;
+                amount: string;
+                description: string;
+            };
+            action?: undefined;
+            currentValue?: undefined;
+            proposedValue?: undefined;
+        };
+    } | {
+        id: string;
+        title: string;
+        description: string;
+        status: string;
+        votesFor: string;
+        votesAgainst: string;
+        startTime: string;
+        endTime: string;
+        executed: boolean;
+        metadata: {
+            proposalType: string;
+            action: string;
+            currentValue: string;
+            proposedValue: string;
+            claimData?: undefined;
+        };
+    })[]>;
+    private getDummyGovernanceProposals;
+    private getProposalsFromEvents;
     createGovernanceProposal(proposalData: any): Promise<{
         success: boolean;
         message: string;
@@ -159,22 +261,42 @@ export declare class ContractService {
             data: string;
             estimatedGas: string;
             value: string;
+            mock?: undefined;
+        };
+        contractAddress: string;
+        note: string;
+    } | {
+        success: boolean;
+        message: string;
+        proposalData: any;
+        transaction: {
+            to: string;
+            data: string;
+            estimatedGas: string;
+            value: string;
+            mock: boolean;
         };
         contractAddress: string;
         note: string;
     }>;
     voteOnProposal(voteData: any): Promise<{
         success: boolean;
-        message: string;
-        voteData: any;
         transaction: {
             to: string;
             data: string;
-            estimatedGas: string;
             value: string;
+            estimatedGas: string;
+            proposalId: any;
+            support: any;
+            reason: any;
         };
-        contractAddress: string;
-        note: string;
+        message: string;
+        error?: undefined;
+    } | {
+        success: boolean;
+        error: any;
+        transaction?: undefined;
+        message?: undefined;
     }>;
     getLiquidityInfo(): Promise<{
         stablecoin: {
@@ -190,34 +312,27 @@ export declare class ContractService {
     }>;
     healthCheck(): Promise<{
         status: string;
-        contracts: {
-            stablecoin: {
-                address: string;
-                name: any;
-                connected: boolean;
-            };
-            governanceToken: {
-                address: string;
-                name: any;
-                connected: boolean;
-            };
-            policyNFT: {
-                address: string;
-                name: any;
-                connected: boolean;
-            };
+        network: {
+            name: string;
+            chainId: string;
         };
-        network: string;
+        contracts: {
+            stablecoin: string;
+            governanceToken: string;
+            policyNFT: string;
+            claimsEngine: string;
+            governance: string;
+        };
         timestamp: string;
         error?: undefined;
     } | {
         status: string;
         error: any;
         timestamp: string;
-        contracts?: undefined;
         network?: undefined;
+        contracts?: undefined;
     }>;
-    getAllClaims(): Promise<any[]>;
+    private getClaimsFromEvents;
     voteOnClaim(voteData: any): Promise<{
         success: boolean;
         message: string;
@@ -225,11 +340,12 @@ export declare class ContractService {
         transaction: {
             to: string;
             data: string;
-            estimatedGas: string;
             value: string;
+            estimatedGas: string;
         };
         contractAddress: string;
         note: string;
+        nextSteps: string[];
     }>;
     getJuryVotingDetails(claimId: string): Promise<{
         jurors: any;
@@ -255,6 +371,46 @@ export declare class ContractService {
         note: string;
     }>;
     private getClaimType;
-    private getPolicyTypeName;
+    private getClaimTypeEnum;
+    private getPolicyTypeNameFromType;
     private getPolicyStatusName;
+    fetchAllData(userAddress?: string): Promise<{
+        policies: any[];
+        claims: any[];
+        nfts: any[];
+        governance: any[];
+        sources: {
+            blockchain: {
+                policies: number;
+                claims: number;
+                nfts: number;
+            };
+            database: {
+                policies: number;
+                claims: number;
+            };
+            combined: {
+                policies: number;
+                claims: number;
+                nfts: number;
+            };
+        };
+        errors: any[];
+    }>;
+    getAllUserPolicies(userAddress: string): Promise<{
+        policies: any[];
+        total: number;
+        source: string;
+        userAddress: string;
+        note: string;
+        error?: undefined;
+    } | {
+        policies: any[];
+        total: number;
+        source: string;
+        userAddress: string;
+        error: any;
+        note: string;
+    }>;
+    private getFallbackClaims;
 }

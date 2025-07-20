@@ -3,9 +3,9 @@ export declare class GovernanceController {
     private readonly governanceService;
     constructor(governanceService: GovernanceService);
     getProposals(): Promise<{
-        proposals: any[];
+        proposals: import("./entities/proposal.entity").Proposal[];
         total: number;
-        contractAddress: string;
+        contractAddress: any;
         message: string;
         error?: undefined;
     } | {
@@ -25,16 +25,22 @@ export declare class GovernanceController {
         proposal: import("./entities/proposal.entity").Proposal;
         blockchainResult: {
             success: boolean;
-            message: string;
-            voteData: any;
             transaction: {
                 to: string;
                 data: string;
-                estimatedGas: string;
                 value: string;
+                estimatedGas: string;
+                proposalId: any;
+                support: any;
+                reason: any;
             };
-            contractAddress: string;
-            note: string;
+            message: string;
+            error?: undefined;
+        } | {
+            success: boolean;
+            error: any;
+            transaction?: undefined;
+            message?: undefined;
         };
         message: string;
     }>;

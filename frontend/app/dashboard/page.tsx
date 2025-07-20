@@ -78,134 +78,175 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      <div className="min-h-screen p-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="spinner"></div>
           </div>
         </div>
       </div>
     );
   }
 
-
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+    <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">ChainSure Dashboard</h1>
-          <p className="text-gray-600">Real-time insights into your decentralized insurance platform</p>
-          <div className="flex space-x-4 mt-4">
-            <Link href="/policies/create" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+        {/* Enhanced Header */}
+        <div className="mb-12 text-center">
+          <h1 className="text-5xl font-bold text-white mb-4 floating-animation">
+            ChainSure Dashboard
+          </h1>
+          <p className="text-white/80 text-xl mb-8 max-w-2xl mx-auto">
+            Real-time insights into your decentralized insurance platform with AI-powered analytics
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link 
+              href="/policies/create" 
+              className="btn-primary flex items-center gap-2"
+            >
+              <span>✨</span>
               Create New Policy
             </Link>
-            <Link href="/claims/submit" className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
+            <Link 
+              href="/claims/submit" 
+              className="btn-secondary flex items-center gap-2"
+            >
+              <span>📝</span>
               Submit Claim
             </Link>
           </div>
         </div>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Enhanced Key Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           <MetricCard 
             title="Total Policies" 
             value={stats?.totalPolicies.toLocaleString() || '0'} 
             trend={stats?.trends.policies}
             icon="📋"
+            gradient="from-blue-500 to-cyan-500"
           />
           <MetricCard 
             title="Active Claims" 
             value={stats?.activeClaims.toLocaleString() || '0'} 
             trend={stats?.trends.claims}
             icon="⚡"
+            gradient="from-purple-500 to-pink-500"
           />
           <MetricCard 
             title="Total Staked" 
             value={`$${stats?.totalStaked || '0'}`} 
             trend="+5.2%"
             icon="💰"
+            gradient="from-green-500 to-emerald-500"
           />
           <MetricCard 
             title="Monthly Premiums" 
             value={`$${stats?.monthlyPremiums || '0'}`} 
             trend="+12.5%"
             icon="📈"
+            gradient="from-orange-500 to-red-500"
           />
         </div>
 
-        {/* Secondary Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Enhanced Secondary Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           <MetricCard 
             title="Claims Processed" 
             value={stats?.claimsProcessed.toLocaleString() || '0'} 
             trend="+8.3%"
             icon="✅"
+            gradient="from-teal-500 to-blue-500"
           />
           <MetricCard 
             title="Fraud Detected" 
             value={stats?.fraudDetected.toLocaleString() || '0'} 
             trend={stats?.trends.fraud}
             icon="🔍"
+            gradient="from-red-500 to-pink-500"
           />
           <MetricCard 
             title="Avg Processing Time" 
             value={stats?.avgProcessingTime || '0'} 
             trend="-15%"
             icon="⏱️"
+            gradient="from-indigo-500 to-purple-500"
           />
           <MetricCard 
             title="Customer Satisfaction" 
             value={`${stats?.customerSatisfaction || '0'}/5`} 
             trend={stats?.trends.satisfaction}
             icon="⭐"
+            gradient="from-yellow-500 to-orange-500"
           />
         </div>
 
-        {/* Recent Activity & Quick Actions */}
+        {/* Enhanced Recent Activity & Quick Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Activity */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h3>
+          {/* Enhanced Recent Activity */}
+          <div className="card">
+            <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+              <span>🔄</span>
+              Recent Activity
+            </h3>
             <div className="space-y-4">
               {stats?.recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{getActivityLabel(activity.type)}</p>
-                    <p className="text-sm text-gray-600">{activity.user} • {activity.time}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-green-600">${activity.amount}</p>
+                <div 
+                  key={index} 
+                  className="glass-effect p-4 rounded-xl hover:bg-white/20 transition-all duration-300 cursor-pointer"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-white mb-1">{getActivityLabel(activity.type)}</p>
+                      <p className="text-sm text-white/70">{activity.user} • {activity.time}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-green-400">${activity.amount}</p>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          {/* Enhanced Quick Actions */}
+          <div className="card">
+            <h3 className="text-2xl font-bold gradient-text mb-6 flex items-center gap-3">
+              <span>⚡</span>
+              Quick Actions
+            </h3>
             <div className="grid grid-cols-2 gap-4">
-              <Link href="/policies" className="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-                <div className="text-2xl mb-2">📋</div>
-                <h4 className="font-medium text-gray-900">View Policies</h4>
-                <p className="text-sm text-gray-600">Manage insurance policies</p>
+              <Link 
+                href="/policies" 
+                className="glass-effect p-6 rounded-xl hover:bg-white/20 transition-all duration-300 group"
+              >
+                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">📋</div>
+                <h4 className="font-semibold text-white mb-2">View Policies</h4>
+                <p className="text-sm text-white/70">Manage insurance policies</p>
               </Link>
-              <Link href="/claims" className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-                <div className="text-2xl mb-2">📝</div>
-                <h4 className="font-medium text-gray-900">Process Claims</h4>
-                <p className="text-sm text-gray-600">Review and process claims</p>
+              <Link 
+                href="/claims" 
+                className="glass-effect p-6 rounded-xl hover:bg-white/20 transition-all duration-300 group"
+              >
+                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">📝</div>
+                <h4 className="font-semibold text-white mb-2">Process Claims</h4>
+                <p className="text-sm text-white/70">Review and process claims</p>
               </Link>
-              <Link href="/blockchain" className="p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
-                <div className="text-2xl mb-2">🔗</div>
-                <h4 className="font-medium text-gray-900">Blockchain</h4>
-                <p className="text-sm text-gray-600">View contract interactions</p>
+              <Link 
+                href="/blockchain" 
+                className="glass-effect p-6 rounded-xl hover:bg-white/20 transition-all duration-300 group"
+              >
+                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">🔗</div>
+                <h4 className="font-semibold text-white mb-2">Blockchain</h4>
+                <p className="text-sm text-white/70">View contract interactions</p>
               </Link>
-              <Link href="/governance" className="p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors">
-                <div className="text-2xl mb-2">🗳️</div>
-                <h4 className="font-medium text-gray-900">Governance</h4>
-                <p className="text-sm text-gray-600">Participate in voting</p>
+              <Link 
+                href="/governance" 
+                className="glass-effect p-6 rounded-xl hover:bg-white/20 transition-all duration-300 group"
+              >
+                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">🗳️</div>
+                <h4 className="font-semibold text-white mb-2">Governance</h4>
+                <p className="text-sm text-white/70">Participate in voting</p>
               </Link>
             </div>
           </div>
@@ -215,17 +256,35 @@ export default function Dashboard() {
   );
 }
 
-function MetricCard({ title, value, trend, icon }: { title: string; value: string; trend?: string; icon: string }) {
-  const trendColor = trend?.startsWith('+') ? 'text-green-600' : trend?.startsWith('-') ? 'text-red-600' : 'text-gray-600';
+function MetricCard({ 
+  title, 
+  value, 
+  trend, 
+  icon, 
+  gradient 
+}: { 
+  title: string; 
+  value: string; 
+  trend?: string; 
+  icon: string;
+  gradient: string;
+}) {
+  const trendColor = trend?.startsWith('+') ? 'text-green-400' : trend?.startsWith('-') ? 'text-red-400' : 'text-white/70';
   
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-2xl">{icon}</div>
-        {trend && <span className={`text-sm font-medium ${trendColor}`}>{trend}</span>}
+    <div className="card group hover:scale-105 transition-all duration-300">
+      <div className="flex items-center justify-between mb-4">
+        <div className={`text-3xl p-3 rounded-xl bg-gradient-to-r ${gradient} group-hover:scale-110 transition-transform duration-300`}>
+          {icon}
+        </div>
+        {trend && (
+          <span className={`text-sm font-bold px-3 py-1 rounded-full glass-effect ${trendColor}`}>
+            {trend}
+          </span>
+        )}
       </div>
-      <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
-      <p className="text-3xl font-bold text-blue-600">{value}</p>
+      <h3 className="text-lg font-semibold text-white/90 mb-2">{title}</h3>
+      <p className="text-4xl font-bold text-white">{value}</p>
     </div>
   );
 }

@@ -104,4 +104,59 @@ export declare class BlockchainService {
         contracts?: undefined;
     }>;
     getProvider(): ethers.JsonRpcProvider;
+    getConfig(): {
+        network: string;
+        chainId: number;
+        rpcUrl: string;
+        contracts: {
+            stablecoin: string;
+            governanceToken: string;
+            policyNFT: string;
+            claimsEngine: string;
+            surplusDistributor: string;
+            governance: string;
+        };
+        explorerUrl: string;
+    };
+    getAllClaims(): Promise<{
+        id: string;
+        claimId: string;
+        userId: string;
+        policyId: string;
+        type: string;
+        status: string;
+        requestedAmount: string;
+        approvedAmount: any;
+        description: string;
+        documents: string[];
+        images: any[];
+        aiAnalysis: {
+            fraudScore: number;
+            authenticityScore: number;
+            recommendation: string;
+            reasoning: string;
+            confidence: number;
+        };
+        createdAt: string;
+        updatedAt: string;
+        votingDetails: {
+            votesFor: string;
+            votesAgainst: string;
+            totalVotes: string;
+            votingEnds: string;
+        };
+    }[]>;
+    private getFallbackClaims;
+    getTokenBalances(address: string): Promise<{
+        stablecoin: {
+            balance: string;
+            symbol: string;
+            decimals: number;
+        };
+        governanceToken: {
+            balance: string;
+            symbol: string;
+            decimals: number;
+        };
+    }>;
 }

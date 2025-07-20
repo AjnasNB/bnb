@@ -3,6 +3,7 @@ import { ContractService } from './contract.service';
 export declare class BlockchainController {
     private readonly blockchainService;
     private readonly contractService;
+    private readonly logger;
     constructor(blockchainService: BlockchainService, contractService: ContractService);
     getNetworkInfo(): Promise<{
         network: string;
@@ -32,34 +33,43 @@ export declare class BlockchainController {
         currency: string;
     }>;
     getTokenBalances(address: string): Promise<{
-        address: string;
+        success: boolean;
         tokens: {
-            stablecoin: any;
-            governanceToken: any;
+            stablecoin: {
+                balance: string;
+                symbol: string;
+                decimals: number;
+            };
+            governanceToken: {
+                balance: string;
+                symbol: string;
+                decimals: number;
+            };
         };
-        nftPolicies: {
-            success: boolean;
-            policies: any[];
-            totalPolicies: number;
-            note: string;
-        } | {
-            success: boolean;
-            policies: any[];
-            totalPolicies: number;
-            note?: undefined;
+        address: string;
+        source?: undefined;
+    } | {
+        success: boolean;
+        tokens: {
+            stablecoin: {
+                balance: string;
+                symbol: string;
+                decimals: number;
+            };
+            governanceToken: {
+                balance: string;
+                symbol: string;
+                decimals: number;
+            };
         };
-        timestamp: string;
+        address: string;
+        source: string;
     }>;
     getUserPolicies(address: string): Promise<{
         success: boolean;
         policies: any[];
         totalPolicies: number;
-        note: string;
-    } | {
-        success: boolean;
-        policies: any[];
-        totalPolicies: number;
-        note?: undefined;
+        message: string;
     }>;
     getLiquidityInfo(): Promise<{
         stablecoin: {
@@ -102,15 +112,84 @@ export declare class BlockchainController {
     submitClaim(claimData: any): Promise<{
         success: boolean;
         message: string;
-        claimData: any;
-        transaction: {
-            to: string;
-            data: string;
-            estimatedGas: string;
-            value: string;
+        claimData: {
+            claimId: string;
+            policyId: any;
+            claimType: any;
+            amount: any;
+            description: any;
+            evidenceHashes: any;
+            userAddress: any;
+            submittedAt: string;
         };
-        contractAddress: string;
+        blockchainResult: {
+            contractAddresses: {
+                claimsEngine: string;
+                governance: string;
+            };
+            transactions: {
+                claimSubmission: {
+                    to: string;
+                    data: string;
+                    value: string;
+                    estimatedGas: string;
+                };
+                governanceProposal: {
+                    to: string;
+                    data: string;
+                    value: string;
+                    estimatedGas: string;
+                };
+            };
+        };
+        votingProposal: {
+            title: string;
+            description: string;
+            votingPeriod: number;
+            claimId: string;
+        };
+        nextSteps: string[];
+        error?: undefined;
+        note?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        error: any;
+        claimData: {
+            claimId: string;
+            policyId: any;
+            claimType: any;
+            amount: any;
+            description: any;
+            evidenceHashes: any;
+            userAddress: any;
+            submittedAt: string;
+        };
+        blockchainResult: {
+            contractAddresses: {
+                claimsEngine: string;
+                governance: string;
+            };
+            transactions: {
+                claimSubmission: {
+                    to: string;
+                    data: string;
+                    value: string;
+                    estimatedGas: string;
+                    error: string;
+                };
+                governanceProposal: {
+                    to: string;
+                    data: string;
+                    value: string;
+                    estimatedGas: string;
+                    error: string;
+                };
+            };
+        };
         note: string;
+        votingProposal?: undefined;
+        nextSteps?: undefined;
     }>;
     stakeTokens(stakeData: {
         amount: string;
@@ -225,51 +304,163 @@ export declare class BlockchainController {
         gasPrice?: undefined;
         confirmations?: undefined;
     }>;
-    getProposals(): Promise<{
-        proposals: any[];
-        contractAddress: string;
-        totalProposals: number;
-    }>;
+    getProposals(): Promise<({
+        id: string;
+        title: string;
+        description: string;
+        status: string;
+        votesFor: string;
+        votesAgainst: string;
+        startTime: string;
+        endTime: string;
+        executed: boolean;
+        metadata: {
+            proposalType: string;
+            claimData: {
+                claimId: string;
+                policyTokenId: string;
+                amount: string;
+                description: string;
+            };
+            action?: undefined;
+            currentValue?: undefined;
+            proposedValue?: undefined;
+        };
+    } | {
+        id: string;
+        title: string;
+        description: string;
+        status: string;
+        votesFor: string;
+        votesAgainst: string;
+        startTime: string;
+        endTime: string;
+        executed: boolean;
+        metadata: {
+            proposalType: string;
+            action: string;
+            currentValue: string;
+            proposedValue: string;
+            claimData?: undefined;
+        };
+    })[]>;
     voteOnProposal(voteData: any): Promise<{
         success: boolean;
-        message: string;
-        voteData: any;
         transaction: {
             to: string;
             data: string;
-            estimatedGas: string;
             value: string;
+            estimatedGas: string;
+            proposalId: any;
+            support: any;
+            reason: any;
         };
-        contractAddress: string;
-        note: string;
+        message: string;
+        error?: undefined;
+    } | {
+        success: boolean;
+        error: any;
+        transaction?: undefined;
+        message?: undefined;
     }>;
     healthCheck(): Promise<{
         status: string;
-        contracts: {
-            stablecoin: {
-                address: string;
-                name: any;
-                connected: boolean;
-            };
-            governanceToken: {
-                address: string;
-                name: any;
-                connected: boolean;
-            };
-            policyNFT: {
-                address: string;
-                name: any;
-                connected: boolean;
-            };
+        network: {
+            name: string;
+            chainId: string;
         };
-        network: string;
+        contracts: {
+            stablecoin: string;
+            governanceToken: string;
+            policyNFT: string;
+            claimsEngine: string;
+            governance: string;
+        };
         timestamp: string;
         error?: undefined;
     } | {
         status: string;
         error: any;
         timestamp: string;
-        contracts?: undefined;
         network?: undefined;
+        contracts?: undefined;
+    }>;
+    getAllData(userAddress?: string): Promise<{
+        policies: any[];
+        claims: any[];
+        nfts: any[];
+        governance: any[];
+        sources: {
+            blockchain: {
+                policies: number;
+                claims: number;
+                nfts: number;
+            };
+            database: {
+                policies: number;
+                claims: number;
+            };
+            combined: {
+                policies: number;
+                claims: number;
+                nfts: number;
+            };
+        };
+        errors: any[];
+    }>;
+    getAllUserPolicies(address: string): Promise<{
+        policies: any[];
+        total: number;
+        source: string;
+        userAddress: string;
+        note: string;
+        error?: undefined;
+    } | {
+        policies: any[];
+        total: number;
+        source: string;
+        userAddress: string;
+        error: any;
+        note: string;
+    }>;
+    getAllClaims(): Promise<{
+        success: boolean;
+        claims: {
+            id: string;
+            claimId: string;
+            userId: string;
+            policyId: string;
+            type: string;
+            status: string;
+            requestedAmount: string;
+            approvedAmount: any;
+            description: string;
+            documents: string[];
+            images: any[];
+            aiAnalysis: {
+                fraudScore: number;
+                authenticityScore: number;
+                recommendation: string;
+                reasoning: string;
+                confidence: number;
+            };
+            createdAt: string;
+            updatedAt: string;
+            votingDetails: {
+                votesFor: string;
+                votesAgainst: string;
+                totalVotes: string;
+                votingEnds: string;
+            };
+        }[];
+        total: number;
+        source: string;
+        error?: undefined;
+    } | {
+        success: boolean;
+        claims: any[];
+        total: number;
+        error: any;
+        source?: undefined;
     }>;
 }

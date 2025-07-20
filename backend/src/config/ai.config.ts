@@ -5,7 +5,7 @@ export const aiConfig = registerAs('ai', () => ({
   endpoint: process.env.AI_SERVICE_URL || 'http://localhost:8001',
   
   // API key for AI service authentication
-  apiKey: process.env.AI_SERVICE_API_KEY || 'chainsure_backend_key_2024',
+  apiKey: process.env.AI_SERVICE_API_KEY || 'chainsure_dev_key_2024',
   
   // Request timeout settings
   timeout: parseInt(process.env.AI_SERVICE_TIMEOUT, 10) || 30000, // 30 seconds

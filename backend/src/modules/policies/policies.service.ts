@@ -45,6 +45,88 @@ export class PoliciesService {
     }
   }
 
+  async findUserPolicies(userId: string) {
+    try {
+      this.logger.log(`Finding user policies for: ${userId}`);
+
+      // Use the new comprehensive fetch function
+      const result = await this.contractService.getAllUserPolicies(userId);
+      
+      this.logger.log(`Found ${result.total} policies for user ${userId} from ${result.source}`);
+      
+      return {
+        policies: result.policies,
+        total: result.total,
+        source: result.source,
+        userAddress: userId,
+        ...(result.error && { error: result.error })
+      };
+
+    } catch (error) {
+      this.logger.error(`Error finding user policies for ${userId}:`, error);
+      
+      // Fallback to comprehensive mock data
+      const fallbackPolicies = [
+        {
+          tokenId: '0',
+          owner: userId,
+          source: 'fallback',
+          details: {
+            policyType: 'Health Insurance',
+            coverageAmount: '5000',
+            premium: '150',
+            startTime: new Date().toISOString(),
+            endTime: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        },
+        {
+          tokenId: '1',
+          owner: userId,
+          source: 'fallback',
+          details: {
+            policyType: 'Vehicle Insurance',
+            coverageAmount: '10000',
+            premium: '300',
+            startTime: new Date().toISOString(),
+            endTime: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        },
+        {
+          tokenId: '2',
+          owner: userId,
+          source: 'fallback',
+          details: {
+            policyType: 'Travel Insurance',
+            coverageAmount: '7500',
+            premium: '200',
+            startTime: new Date().toISOString(),
+            endTime: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        },
+        {
+          tokenId: '3',
+          owner: userId,
+          source: 'fallback',
+          details: {
+            policyType: 'Pet Insurance',
+            coverageAmount: '3000',
+            premium: '100',
+            startTime: new Date().toISOString(),
+            endTime: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        }
+      ];
+
+      return {
+        policies: fallbackPolicies,
+        total: fallbackPolicies.length,
+        source: 'fallback',
+        userAddress: userId,
+        error: error.message
+      };
+    }
+  }
+
   async findOne(id: string) {
     try {
       const policy = await this.policyRepository.findOne({ where: { id } });

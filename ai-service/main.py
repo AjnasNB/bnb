@@ -199,16 +199,14 @@ async def health_check():
 @app.post("/analyze-claim", response_model=ClaimAnalysisResponse, tags=["AI Analysis"])
 async def analyze_claim(
     request: ClaimAnalysisRequest,
-    client_info: dict = Depends(get_client_info),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Comprehensive claim analysis with AI"""
     start_time = time.time()
-    client_name = client_info.get("client_name", "unknown")
     
     try:
         # Log request
-        logger.info(f"🔍 Analyzing claim {request.claimId} for {client_name}")
+        logger.info(f"🔍 Analyzing claim {request.claimId}")
         
         if not fraud_service or not fraud_service.is_ready():
             raise HTTPException(status_code=503, detail="Fraud detection service not available")
@@ -252,12 +250,10 @@ async def analyze_claim(
 async def process_document(
     file: UploadFile = File(...),
     document_type: str = Form("general"),
-    client_info: dict = Depends(get_client_info),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Process document with OCR and validation"""
     start_time = time.time()
-    client_name = client_info.get("client_name", "unknown")
     
     try:
         # File size check
@@ -265,7 +261,7 @@ async def process_document(
         if len(content) > AI_SERVICE_CONFIG["max_file_size_mb"] * 1024 * 1024:
             raise HTTPException(status_code=413, detail="File too large")
         
-        logger.info(f"📄 Processing document {file.filename} for {client_name}")
+        logger.info(f"📄 Processing document {file.filename}")
         
         if not ocr_service or not ocr_service.is_ready():
             raise HTTPException(status_code=503, detail="OCR service not available")
@@ -307,12 +303,10 @@ async def process_document(
 async def analyze_image(
     file: UploadFile = File(...),
     analysis_type: str = Form("general"),
-    client_info: dict = Depends(get_client_info),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Analyze image for authenticity and damage assessment"""
     start_time = time.time()
-    client_name = client_info.get("client_name", "unknown")
     
     try:
         # File validation
@@ -323,7 +317,7 @@ async def analyze_image(
         if len(content) > AI_SERVICE_CONFIG["max_file_size_mb"] * 1024 * 1024:
             raise HTTPException(status_code=413, detail="File too large")
         
-        logger.info(f"🖼️ Analyzing image {file.filename} for {client_name}")
+        logger.info(f"🖼️ Analyzing image {file.filename}")
         
         if not image_service or not image_service.is_ready():
             raise HTTPException(status_code=503, detail="Image analysis service not available")
@@ -341,15 +335,13 @@ async def analyze_image(
 @app.post("/gemini-analyze", tags=["Advanced AI"])
 async def gemini_analyze(
     data: dict,
-    client_info: dict = Depends(get_client_info),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Advanced analysis using Google Gemini"""
     start_time = time.time()
-    client_name = client_info.get("client_name", "unknown")
     
     try:
-        logger.info(f"🤖 Gemini analysis for {client_name}")
+        logger.info(f"🤖 Gemini analysis")
         
         from services.gemini_service import GeminiService
         gemini_service = GeminiService()
@@ -369,7 +361,7 @@ async def gemini_analyze(
         raise HTTPException(status_code=500, detail=f"Gemini analysis failed: {str(e)}")
 
 @app.post("/health-check", tags=["Health"])
-async def health_check_endpoint(client_info: dict = Depends(get_client_info)):
+async def health_check_endpoint():
     """Authenticated health check for monitoring"""
     return await health_check()
 

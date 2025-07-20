@@ -9,14 +9,14 @@ export const blockchainConfig = registerAs('blockchain', () => ({
   // Private key for backend operations (should be secured)
   privateKey: process.env.BLOCKCHAIN_PRIVATE_KEY,
   
-  // Contract addresses (loaded from deployment files)
+  // Contract addresses - HARDCODED DEPLOYED ADDRESSES
   contracts: {
-    stablecoin: process.env.CONTRACT_STABLECOIN_ADDRESS,
-    governanceToken: process.env.CONTRACT_GOVERNANCE_TOKEN_ADDRESS,
-    policyNFT: process.env.CONTRACT_POLICY_NFT_ADDRESS,
-    claimsEngine: process.env.CONTRACT_CLAIMS_ENGINE_ADDRESS,
-    surplusDistributor: process.env.CONTRACT_SURPLUS_DISTRIBUTOR_ADDRESS,
-    governance: process.env.CONTRACT_GOVERNANCE_ADDRESS,
+    stablecoin: '0x644Ed1D005Eadbaa4D4e05484AEa8e52A4DB76c8',
+    governanceToken: '0xD0aa884859B93aFF4324B909fAeC619096f0Cc05',
+    policyNFT: '0x2e2acdf394319b365Cc46cF587ab8a2d25Cb3312',
+    claimsEngine: '0x528Bf18723c2021420070e0bB2912F881a93ca53',
+    surplusDistributor: '0x95b0821Dc5C8d272Cc34C593faa76f62E7EAA2Ac',
+    governance: '0x364424CBf264F54A0fFE12D99F3902B398fc0B36',
   },
   
   // Gas configuration

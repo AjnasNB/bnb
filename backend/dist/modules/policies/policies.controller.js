@@ -92,6 +92,9 @@ let PoliciesController = class PoliciesController {
     async findAll(page = 1, limit = 10) {
         return this.policiesService.findAll({ page, limit });
     }
+    async findUserPolicies(userId) {
+        return this.policiesService.findUserPolicies(userId);
+    }
     async findOne(id) {
         return this.policiesService.findOne(id);
     }
@@ -132,6 +135,14 @@ __decorate([
     __metadata("design:paramtypes", [Number, Number]),
     __metadata("design:returntype", Promise)
 ], PoliciesController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('user/:userId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get policies for specific user' }),
+    __param(0, (0, common_1.Param)('userId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], PoliciesController.prototype, "findUserPolicies", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, swagger_1.ApiOperation)({ summary: 'Get policy by ID' }),
