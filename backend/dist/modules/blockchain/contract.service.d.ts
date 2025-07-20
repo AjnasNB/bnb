@@ -413,4 +413,6 @@ export declare class ContractService {
         note: string;
     }>;
     private getFallbackClaims;
+    getAllPolicies(): Promise<any[]>;
+    private getFallbackPolicies;
 }

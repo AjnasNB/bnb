@@ -59,11 +59,12 @@ export default function GovernancePage() {
   const [voteChoice, setVoteChoice] = useState<'approve' | 'reject'>('approve');
   const [voteReason, setVoteReason] = useState('');
   const [voteLoading, setVoteLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'claims' | 'proposals'>('claims');
+  const [activeTab, setActiveTab] = useState<'claims' | 'proposals' | 'policies'>('claims');
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [proposalVoteChoice, setProposalVoteChoice] = useState<boolean | null>(null);
   const [proposalVoteReason, setProposalVoteReason] = useState('');
+  const [policies, setPolicies] = useState<any[]>([]); // Added for policies
 
   // Function to open claim details modal
   const openClaimDetails = (claim: Claim) => {
@@ -215,251 +216,298 @@ export default function GovernancePage() {
   };
 
   useEffect(() => {
-    if (isConnected && account) {
-      loadGovernanceData();
-    }
-  }, [isConnected, account]);
+    loadAllData();
+  }, []);
 
-  const loadGovernanceData = async () => {
+  const loadAllData = async () => {
     try {
       setLoading(true);
-      console.log('Loading governance data...');
       
-      // Always use fallback data to ensure we have content
-      const fallbackProposals = [
-        {
-          id: '1',
-          title: 'Claim Review: Emergency Medical Treatment',
-          description: 'Review claim for policy #1. Amount: $3000. Description: Emergency medical treatment for broken leg',
-          status: 'active',
-          votesFor: '1500',
-          votesAgainst: '500',
-          startTime: '2024-01-15T00:00:00.000Z',
-          endTime: '2024-01-22T00:00:00.000Z',
-          executed: false,
-          metadata: {
-            proposalType: 'claim_review',
-            claimData: {
-              claimId: 'claim_1234567890_abc123',
-              policyTokenId: '1',
-              amount: '3000',
-              description: 'Emergency medical treatment for broken leg'
-            }
+      // Load ALL claims and ALL policies
+      const [claimsResponse, policiesResponse, everythingResponse] = await Promise.all([
+        fetch('/api/v1/blockchain/claims/all'),
+        fetch('/api/v1/blockchain/policies/all'),
+        fetch('/api/v1/blockchain/everything')
+      ]);
+
+      // Load claims
+      if (claimsResponse.ok) {
+        const claimsData = await claimsResponse.json();
+        if (claimsData.success && claimsData.claims) {
+          setClaims(claimsData.claims);
+          console.log(`Loaded ${claimsData.claims.length} claims from ${claimsData.source}`);
+        } else {
+          console.log('Using fallback claims data');
+          setClaims(getFallbackClaims());
+        }
+      } else {
+        console.log('Claims API failed, using fallback');
+        setClaims(getFallbackClaims());
+      }
+
+      // Load policies
+      if (policiesResponse.ok) {
+        const policiesData = await policiesResponse.json();
+        if (policiesData.success && policiesData.policies) {
+          setPolicies(policiesData.policies);
+          console.log(`Loaded ${policiesData.policies.length} policies from ${policiesData.source}`);
+        } else {
+          console.log('Using fallback policies data');
+          setPolicies(getFallbackPolicies());
+        }
+      } else {
+        console.log('Policies API failed, using fallback');
+        setPolicies(getFallbackPolicies());
+      }
+
+      // Load comprehensive data
+      if (everythingResponse.ok) {
+        const everythingData = await everythingResponse.json();
+        if (everythingData.success) {
+          console.log('Comprehensive data loaded:', everythingData.data);
+          // Update claims and policies with comprehensive data
+          if (everythingData.data.claims.items.length > 0) {
+            setClaims(everythingData.data.claims.items);
           }
-        },
-        {
-          id: '2',
-          title: 'Claim Review: Car Accident Damage',
-          description: 'Review claim for policy #2. Amount: $2500. Description: Car accident damage repair',
-          status: 'active',
-          votesFor: '1200',
-          votesAgainst: '800',
-          startTime: '2024-01-16T00:00:00.000Z',
-          endTime: '2024-01-23T00:00:00.000Z',
-          executed: false,
-          metadata: {
-            proposalType: 'claim_review',
-            claimData: {
-              claimId: 'claim_1234567891_def456',
-              policyTokenId: '2',
-              amount: '2500',
-              description: 'Car accident damage repair'
-            }
-          }
-        },
-        {
-          id: '3',
-          title: 'Governance: Increase Minimum Stake Amount',
-          description: 'Proposal to increase minimum stake amount for governance participation from 1000 CSG to 2000 CSG',
-          status: 'active',
-          votesFor: '800',
-          votesAgainst: '1200',
-          startTime: '2024-01-17T00:00:00.000Z',
-          endTime: '2024-01-24T00:00:00.000Z',
-          executed: false,
-          metadata: {
-            proposalType: 'governance',
-            action: 'increase_minimum_stake',
-            currentValue: '1000',
-            proposedValue: '2000'
-          }
-        },
-        {
-          id: '4',
-          title: 'Governance: Update Claims Processing Fee',
-          description: 'Proposal to update claims processing fee from 2% to 1.5% to reduce costs for policyholders',
-          status: 'active',
-          votesFor: '1800',
-          votesAgainst: '200',
-          startTime: '2024-01-18T00:00:00.000Z',
-          endTime: '2024-01-25T00:00:00.000Z',
-          executed: false,
-          metadata: {
-            proposalType: 'governance',
-            action: 'update_processing_fee',
-            currentValue: '2%',
-            proposedValue: '1.5%'
-          }
-        },
-        {
-          id: '5',
-          title: 'Claim Review: Home Fire Damage',
-          description: 'Review claim for policy #3. Amount: $5000. Description: House fire damage repair',
-          status: 'active',
-          votesFor: '900',
-          votesAgainst: '1100',
-          startTime: '2024-01-19T00:00:00.000Z',
-          endTime: '2024-01-26T00:00:00.000Z',
-          executed: false,
-          metadata: {
-            proposalType: 'claim_review',
-            claimData: {
-              claimId: 'claim_1234567892_ghi789',
-              policyTokenId: '3',
-              amount: '5000',
-              description: 'House fire damage repair'
-            }
+          if (everythingData.data.policies.items.length > 0) {
+            setPolicies(everythingData.data.policies.items);
           }
         }
-      ];
-      
-      // Comprehensive fallback claims for voting
-      const fallbackClaims = [
-        {
-          id: '1',
-          claimId: 'claim_1234567890_abc123',
-          policyTokenId: '1',
-          claimant: account || '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
-          amount: '3000',
-          description: 'Emergency medical treatment for broken leg - Hospital visit and medication costs',
-          status: 'pending',
-          submittedAt: '2024-01-15T00:00:00.000Z',
-          evidenceHashes: ['QmEvidence1', 'QmEvidence2', 'QmEvidence3'],
-          aiAnalysis: {
-            fraudScore: 25,
-            authenticityScore: 0.85,
-            recommendation: 'approve',
-            reasoning: 'Documents appear authentic, damage assessment is reasonable, photos support claim',
-            confidence: 0.75
-          },
-          votingDetails: {
-            votesFor: '1500',
-            votesAgainst: '500',
-            totalVotes: '2000',
-            votingEnds: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
-          }
-        },
-        {
-          id: '2',
-          claimId: 'claim_1234567891_def456',
-          policyTokenId: '2',
-          claimant: account || '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
-          amount: '2500',
-          description: 'Car accident damage repair - Front bumper and headlight replacement needed',
-          status: 'pending',
-          submittedAt: '2024-01-16T00:00:00.000Z',
-          evidenceHashes: ['QmEvidence4', 'QmEvidence5'],
-          aiAnalysis: {
-            fraudScore: 30,
-            authenticityScore: 0.78,
-            recommendation: 'review',
-            reasoning: 'Claim requires additional verification, photos show significant damage',
-            confidence: 0.65
-          },
-          votingDetails: {
-            votesFor: '1200',
-            votesAgainst: '800',
-            totalVotes: '2000',
-            votingEnds: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString()
-          }
-        },
-        {
-          id: '3',
-          claimId: 'claim_1234567892_ghi789',
-          policyTokenId: '3',
-          claimant: account || '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
-          amount: '5000',
-          description: 'House fire damage repair - Kitchen and living room damage from electrical fire',
-          status: 'pending',
-          submittedAt: '2024-01-17T00:00:00.000Z',
-          evidenceHashes: ['QmEvidence6', 'QmEvidence7', 'QmEvidence8'],
-          aiAnalysis: {
-            fraudScore: 35,
-            authenticityScore: 0.82,
-            recommendation: 'review',
-            reasoning: 'Fire damage assessment requires expert verification',
-            confidence: 0.70
-          },
-          votingDetails: {
-            votesFor: '900',
-            votesAgainst: '1100',
-            totalVotes: '2000',
-            votingEnds: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
-          }
-        },
-        {
-          id: '4',
-          claimId: 'claim_1234567893_jkl012',
-          policyTokenId: '4',
-          claimant: account || '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
-          amount: '800',
-          description: 'Lost luggage during international trip - Baggage lost during flight transfer',
-          status: 'pending',
-          submittedAt: '2024-01-18T00:00:00.000Z',
-          evidenceHashes: ['QmEvidence9', 'QmEvidence10'],
-          aiAnalysis: {
-            fraudScore: 20,
-            authenticityScore: 0.88,
-            recommendation: 'approve',
-            reasoning: 'Travel claim with proper documentation, airline confirmation provided',
-            confidence: 0.82
-          },
-          votingDetails: {
-            votesFor: '900',
-            votesAgainst: '100',
-            totalVotes: '1000',
-            votingEnds: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString()
-          }
-        },
-        {
-          id: '5',
-          claimId: 'claim_1234567894_mno345',
-          policyTokenId: '5',
-          claimant: account || '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
-          amount: '1200',
-          description: 'Dental emergency treatment - Root canal and crown replacement',
-          status: 'pending',
-          submittedAt: '2024-01-19T00:00:00.000Z',
-          evidenceHashes: ['QmEvidence11', 'QmEvidence12'],
-          aiAnalysis: {
-            fraudScore: 15,
-            authenticityScore: 0.92,
-            recommendation: 'approve',
-            reasoning: 'Medical documentation is complete and authentic',
-            confidence: 0.88
-          },
-          votingDetails: {
-            votesFor: '1100',
-            votesAgainst: '100',
-            totalVotes: '1200',
-            votingEnds: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
-          }
-        }
-      ];
-      
-      // Set the fallback data immediately
-      setProposals(fallbackProposals);
-      setClaims(fallbackClaims);
-      setVotingPower('1000000');
-      
-      console.log('Using fallback data with', fallbackProposals.length, 'proposals and', fallbackClaims.length, 'claims');
-      
+      }
+
     } catch (error) {
-      console.error('Error loading governance data:', error);
-      // Fallback data is already set above
+      console.error('Error loading data:', error);
+      setClaims(getFallbackClaims());
+      setPolicies(getFallbackPolicies());
     } finally {
       setLoading(false);
     }
+  };
+
+  const getFallbackClaims = () => {
+    return [
+      {
+        id: '1',
+        claimId: 'claim_1234567890_abc123',
+        policyTokenId: '1',
+        claimant: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        amount: '3000',
+        description: 'Emergency medical treatment for broken leg - Hospital visit and medication costs',
+        status: 'pending',
+        submittedAt: '2024-01-15T00:00:00.000Z',
+        evidenceHashes: ['QmEvidence1', 'QmEvidence2', 'QmEvidence3'],
+        aiAnalysis: {
+          fraudScore: 25,
+          authenticityScore: 0.85,
+          recommendation: 'approve',
+          reasoning: 'Documents appear authentic, damage assessment is reasonable, photos support claim',
+          confidence: 0.75
+        },
+        votingDetails: {
+          votesFor: '1500',
+          votesAgainst: '500',
+          totalVotes: '2000',
+          votingEnds: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      },
+      {
+        id: '2',
+        claimId: 'claim_1234567891_def456',
+        policyTokenId: '2',
+        claimant: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        amount: '2500',
+        description: 'Car accident damage repair - Front bumper and headlight replacement needed',
+        status: 'pending',
+        submittedAt: '2024-01-16T00:00:00.000Z',
+        evidenceHashes: ['QmEvidence4', 'QmEvidence5'],
+        aiAnalysis: {
+          fraudScore: 30,
+          authenticityScore: 0.78,
+          recommendation: 'review',
+          reasoning: 'Claim requires additional verification, photos show significant damage',
+          confidence: 0.65
+        },
+        votingDetails: {
+          votesFor: '1200',
+          votesAgainst: '800',
+          totalVotes: '2000',
+          votingEnds: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      },
+      {
+        id: '3',
+        claimId: 'claim_1234567892_ghi789',
+        policyTokenId: '3',
+        claimant: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        amount: '5000',
+        description: 'House fire damage repair - Kitchen and living room damage from electrical fire',
+        status: 'pending',
+        submittedAt: '2024-01-17T00:00:00.000Z',
+        evidenceHashes: ['QmEvidence6', 'QmEvidence7', 'QmEvidence8'],
+        aiAnalysis: {
+          fraudScore: 35,
+          authenticityScore: 0.82,
+          recommendation: 'review',
+          reasoning: 'Fire damage assessment requires expert verification',
+          confidence: 0.70
+        },
+        votingDetails: {
+          votesFor: '900',
+          votesAgainst: '1100',
+          totalVotes: '2000',
+          votingEnds: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      },
+      {
+        id: '4',
+        claimId: 'claim_1234567893_jkl012',
+        policyTokenId: '4',
+        claimant: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        amount: '800',
+        description: 'Lost luggage during international trip - Baggage lost during flight transfer',
+        status: 'pending',
+        submittedAt: '2024-01-18T00:00:00.000Z',
+        evidenceHashes: ['QmEvidence9', 'QmEvidence10'],
+        aiAnalysis: {
+          fraudScore: 20,
+          authenticityScore: 0.88,
+          recommendation: 'approve',
+          reasoning: 'Travel claim with proper documentation, airline confirmation provided',
+          confidence: 0.82
+        },
+        votingDetails: {
+          votesFor: '900',
+          votesAgainst: '100',
+          totalVotes: '1000',
+          votingEnds: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      },
+      {
+        id: '5',
+        claimId: 'claim_1234567894_mno345',
+        policyTokenId: '5',
+        claimant: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        amount: '1200',
+        description: 'Dental emergency treatment - Root canal and crown replacement',
+        status: 'pending',
+        submittedAt: '2024-01-19T00:00:00.000Z',
+        evidenceHashes: ['QmEvidence11', 'QmEvidence12'],
+        aiAnalysis: {
+          fraudScore: 15,
+          authenticityScore: 0.92,
+          recommendation: 'approve',
+          reasoning: 'Medical documentation is complete and authentic',
+          confidence: 0.88
+        },
+        votingDetails: {
+          votesFor: '1100',
+          votesAgainst: '100',
+          totalVotes: '1200',
+          votingEnds: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      }
+    ];
+  };
+
+  const getFallbackPolicies = () => {
+    return [
+      {
+        tokenId: '0',
+        policyType: 'Health Insurance',
+        coverageAmount: '5000',
+        premiumAmount: '150',
+        holder: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        beneficiary: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: true,
+        source: 'fallback'
+      },
+      {
+        tokenId: '1',
+        policyType: 'Vehicle Insurance',
+        coverageAmount: '10000',
+        premiumAmount: '300',
+        holder: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        beneficiary: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: true,
+        source: 'fallback'
+      },
+      {
+        tokenId: '2',
+        policyType: 'Travel Insurance',
+        coverageAmount: '7500',
+        premiumAmount: '200',
+        holder: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        beneficiary: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: true,
+        source: 'fallback'
+      },
+      {
+        tokenId: '3',
+        policyType: 'Pet Insurance',
+        coverageAmount: '3000',
+        premiumAmount: '100',
+        holder: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        beneficiary: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: true,
+        source: 'fallback'
+      },
+      {
+        tokenId: '4',
+        policyType: 'Home Insurance',
+        coverageAmount: '50000',
+        premiumAmount: '500',
+        holder: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        beneficiary: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: true,
+        source: 'fallback'
+      },
+      {
+        tokenId: '5',
+        policyType: 'Life Insurance',
+        coverageAmount: '100000',
+        premiumAmount: '800',
+        holder: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        beneficiary: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: true,
+        source: 'fallback'
+      },
+      {
+        tokenId: '6',
+        policyType: 'Business Insurance',
+        coverageAmount: '25000',
+        premiumAmount: '400',
+        holder: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        beneficiary: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: true,
+        source: 'fallback'
+      },
+      {
+        tokenId: '7',
+        policyType: 'Cyber Insurance',
+        coverageAmount: '15000',
+        premiumAmount: '250',
+        holder: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        beneficiary: '0x8BebaDf625b932811Bf71fBa961ed067b5770EfA',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        isActive: true,
+        source: 'fallback'
+      }
+    ];
   };
 
   const submitVote = async (claimId: string) => {
@@ -796,6 +844,16 @@ export default function GovernancePage() {
               >
                 📋 Governance Proposals
               </button>
+              <button
+                onClick={() => setActiveTab('policies')}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                  activeTab === 'policies'
+                    ? 'bg-white/20 text-white'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                📄 All Policies
+              </button>
             </div>
           </div>
         </div>
@@ -1024,6 +1082,80 @@ export default function GovernancePage() {
                 {proposals.length === 0 && (
                   <div className="text-center py-8">
                     <p className="text-white/60">No governance proposals available</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Policies Tab */}
+            {activeTab === 'policies' && (
+              <div className="space-y-8">
+                <div className="text-center mb-8">
+                  <h2 className="text-3xl font-bold gradient-text mb-4">All Policies</h2>
+                  <p className="text-white/80 text-lg">
+                    View all insurance policies in the system
+                  </p>
+                </div>
+
+                {policies.length === 0 ? (
+                  <div className="card text-center py-12">
+                    <div className="text-6xl mb-4">📄</div>
+                    <h3 className="text-2xl font-bold text-white mb-4">No Policies Found</h3>
+                    <p className="text-white/60">No policies have been issued yet.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {policies.map((policy) => (
+                      <div key={policy.tokenId} className="card group hover:scale-105 transition-all duration-300">
+                        {/* Policy Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="text-xl font-bold text-white mb-1">
+                              Policy #{policy.tokenId}
+                            </h3>
+                            <p className="text-white/60 text-sm">{policy.policyType}</p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusBadge(policy.isActive ? 'active' : 'inactive').className}`}>
+                            {getStatusBadge(policy.isActive ? 'active' : 'inactive').text}
+                          </span>
+                        </div>
+
+                        {/* Policy Details */}
+                        <div className="space-y-4 mb-6">
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/80">Holder:</span>
+                            <span className="text-white font-mono text-sm">{formatAddress(policy.holder)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/80">Beneficiary:</span>
+                            <span className="text-white font-mono text-sm">{formatAddress(policy.beneficiary)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/80">Coverage Amount:</span>
+                            <span className="text-2xl font-bold text-green-400">${policy.coverageAmount}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/80">Premium Amount:</span>
+                            <span className="text-2xl font-bold text-blue-400">${policy.premiumAmount}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/80">Start Date:</span>
+                            <span className="text-white font-mono text-sm">{formatDate(policy.startDate)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/80">End Date:</span>
+                            <span className="text-white font-mono text-sm">{formatDate(policy.endDate)}</span>
+                          </div>
+                        </div>
+
+                        {/* Timestamps */}
+                        <div className="mt-4 pt-4 border-t border-white/10 text-xs text-white/50">
+                          <div className="flex justify-between">
+                            <span>Issued: {formatDate(policy.startDate)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

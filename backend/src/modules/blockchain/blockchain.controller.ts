@@ -159,4 +159,75 @@ export class BlockchainController {
       };
     }
   }
+
+  // NEW: Get all policies from all sources
+  @Get('policies/all')
+  async getAllPolicies() {
+    try {
+      const policies = await this.contractService.getAllPolicies();
+      return {
+        success: true,
+        policies: policies,
+        total: policies.length,
+        source: 'blockchain'
+      };
+    } catch (error) {
+      this.logger.error(`Error getting all policies: ${error.message}`);
+      return {
+        success: false,
+        policies: [],
+        total: 0,
+        error: error.message
+      };
+    }
+  }
+
+  // NEW: Get comprehensive data - everything
+  @Get('everything')
+  async getEverything() {
+    try {
+      const [claims, policies, userPolicies] = await Promise.all([
+        this.blockchainService.getAllClaims(),
+        this.contractService.getAllPolicies(),
+        this.contractService.getAllUserPolicies('0x8BebaDf625b932811Bf71fBa961ed067b5770EfA') // Default user
+      ]);
+
+      return {
+        success: true,
+        data: {
+          claims: {
+            total: claims.length,
+            items: claims,
+            source: 'blockchain'
+          },
+          policies: {
+            total: policies.length,
+            items: policies,
+            source: 'blockchain'
+          },
+          userPolicies: {
+            total: userPolicies.length,
+            items: userPolicies,
+            source: 'blockchain'
+          }
+        },
+        summary: {
+          totalClaims: claims.length,
+          totalPolicies: policies.length,
+          totalUserPolicies: userPolicies.length
+        }
+      };
+    } catch (error) {
+      this.logger.error(`Error getting everything: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
+        data: {
+          claims: { total: 0, items: [], source: 'fallback' },
+          policies: { total: 0, items: [], source: 'fallback' },
+          userPolicies: { total: 0, items: [], source: 'fallback' }
+        }
+      };
+    }
+  }
 } 

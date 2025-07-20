@@ -463,4 +463,105 @@ export declare class BlockchainController {
         error: any;
         source?: undefined;
     }>;
+    getAllPolicies(): Promise<{
+        success: boolean;
+        policies: any[];
+        total: number;
+        source: string;
+        error?: undefined;
+    } | {
+        success: boolean;
+        policies: any[];
+        total: number;
+        error: any;
+        source?: undefined;
+    }>;
+    getEverything(): Promise<{
+        success: boolean;
+        data: {
+            claims: {
+                total: number;
+                items: {
+                    id: string;
+                    claimId: string;
+                    userId: string;
+                    policyId: string;
+                    type: string;
+                    status: string;
+                    requestedAmount: string;
+                    approvedAmount: any;
+                    description: string;
+                    documents: string[];
+                    images: any[];
+                    aiAnalysis: {
+                        fraudScore: number;
+                        authenticityScore: number;
+                        recommendation: string;
+                        reasoning: string;
+                        confidence: number;
+                    };
+                    createdAt: string;
+                    updatedAt: string;
+                    votingDetails: {
+                        votesFor: string;
+                        votesAgainst: string;
+                        totalVotes: string;
+                        votingEnds: string;
+                    };
+                }[];
+                source: string;
+            };
+            policies: {
+                total: number;
+                items: any[];
+                source: string;
+            };
+            userPolicies: {
+                total: any;
+                items: {
+                    policies: any[];
+                    total: number;
+                    source: string;
+                    userAddress: string;
+                    note: string;
+                    error?: undefined;
+                } | {
+                    policies: any[];
+                    total: number;
+                    source: string;
+                    userAddress: string;
+                    error: any;
+                    note: string;
+                };
+                source: string;
+            };
+        };
+        summary: {
+            totalClaims: number;
+            totalPolicies: number;
+            totalUserPolicies: any;
+        };
+        error?: undefined;
+    } | {
+        success: boolean;
+        error: any;
+        data: {
+            claims: {
+                total: number;
+                items: any[];
+                source: string;
+            };
+            policies: {
+                total: number;
+                items: any[];
+                source: string;
+            };
+            userPolicies: {
+                total: number;
+                items: any[];
+                source: string;
+            };
+        };
+        summary?: undefined;
+    }>;
 }
