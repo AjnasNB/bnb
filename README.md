@@ -3,7 +3,7 @@
 A revolutionary blockchain-native insurance platform built on Binance Smart Chain with AI-powered claims processing and transparent governance.
 
 📄 **Whitepaper**  
-[👉 View the document here]((https://chainsure-ai.tiiny.site/))
+[👉 View the document here](<https://chainsure-ai.tiiny.site/>)
 
 ## 🚀 Features
 
